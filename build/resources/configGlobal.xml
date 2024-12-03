@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+ 
+  <GaussianMixture>
+    <!--
+    # input - number of features
+    # output - number of outputs
+    # search method
+      # 1 - Evolutionary Algorithm
+      # 2 - Swarm Optimization - boundaries optimized
+      # 3 - Swarm Optimization - boundaries and poly elements number optimized
+    # The number of elements in polynomial - 'm'
+    # the maximal number of iterations
+    # the number of learning data
+    # the number of test data
+    # the final equation form
+      # 1 - octave/matlab like type
+      # 2 - c/c++ like type
+    -->
+    <parameters inputsNo="2" outputsNo="1" populationSize="3" gaussiansNo="210" maxIterations="0" trainSize="220" testSize="220" outputType="2" normalizeOutput="true"></parameters>
+    
+  </GaussianMixture>
+  <trainingSet>trainXYZ.csv</trainingSet>
+  <testSet>testXYZ.csv</testSet>
+  <verificationSet>testXYZ.csv</verificationSet>

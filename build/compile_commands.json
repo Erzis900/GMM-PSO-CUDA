@@ -1,0 +1,62 @@
+[
+{
+  "directory": "/home/erzis/programming/GaussianMixture_CUDA/build",
+  "command": "/usr/bin/c++ -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE -Dtinyxml2_EXPORTS -I/home/erzis/programming/GaussianMixture_CUDA/include -I/home/erzis/programming/GaussianMixture_CUDA/include/Defs -std=c++11 -pthread -g -std=gnu++11 -fPIC   -Wno-deprecated -o CMakeFiles/tinyxml2.dir/3rdParty/tinyXML/tinyxml2.cpp.o -c /home/erzis/programming/GaussianMixture_CUDA/3rdParty/tinyXML/tinyxml2.cpp",
+  "file": "/home/erzis/programming/GaussianMixture_CUDA/3rdParty/tinyXML/tinyxml2.cpp",
+  "output": "CMakeFiles/tinyxml2.dir/3rdParty/tinyXML/tinyxml2.cpp.o"
+},
+{
+  "directory": "/home/erzis/programming/GaussianMixture_CUDA/build",
+  "command": "/usr/bin/c++ -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE -I/home/erzis/programming/GaussianMixture_CUDA/include -I/home/erzis/programming/GaussianMixture_CUDA/include/Defs -std=c++11 -pthread -g -std=gnu++11   -Wno-deprecated -o CMakeFiles/libGaussianMixture.dir/src/GaussianMixture.cpp.o -c /home/erzis/programming/GaussianMixture_CUDA/src/GaussianMixture.cpp",
+  "file": "/home/erzis/programming/GaussianMixture_CUDA/src/GaussianMixture.cpp",
+  "output": "CMakeFiles/libGaussianMixture.dir/src/GaussianMixture.cpp.o"
+},
+{
+  "directory": "/home/erzis/programming/GaussianMixture_CUDA/build",
+  "command": "/usr/bin/c++ -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE -I/home/erzis/programming/GaussianMixture_CUDA/include -I/home/erzis/programming/GaussianMixture_CUDA/include/Defs -std=c++11 -pthread -g -std=gnu++11   -Wno-deprecated -o CMakeFiles/libGaussianMixture.dir/src/function.cpp.o -c /home/erzis/programming/GaussianMixture_CUDA/src/function.cpp",
+  "file": "/home/erzis/programming/GaussianMixture_CUDA/src/function.cpp",
+  "output": "CMakeFiles/libGaussianMixture.dir/src/function.cpp.o"
+},
+{
+  "directory": "/home/erzis/programming/GaussianMixture_CUDA/build",
+  "command": "/usr/bin/c++ -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE -I/home/erzis/programming/GaussianMixture_CUDA/include -I/home/erzis/programming/GaussianMixture_CUDA/include/Defs -std=c++11 -pthread -g -std=gnu++11   -Wno-deprecated -o CMakeFiles/libGaussianMixture.dir/src/individual.cpp.o -c /home/erzis/programming/GaussianMixture_CUDA/src/individual.cpp",
+  "file": "/home/erzis/programming/GaussianMixture_CUDA/src/individual.cpp",
+  "output": "CMakeFiles/libGaussianMixture.dir/src/individual.cpp.o"
+},
+{
+  "directory": "/home/erzis/programming/GaussianMixture_CUDA/build",
+  "command": "/usr/bin/c++ -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE -I/home/erzis/programming/GaussianMixture_CUDA/include -I/home/erzis/programming/GaussianMixture_CUDA/include/Defs -std=c++11 -pthread -g -std=gnu++11   -Wno-deprecated -o CMakeFiles/libGaussianMixture.dir/src/multivariateGaussian.cpp.o -c /home/erzis/programming/GaussianMixture_CUDA/src/multivariateGaussian.cpp",
+  "file": "/home/erzis/programming/GaussianMixture_CUDA/src/multivariateGaussian.cpp",
+  "output": "CMakeFiles/libGaussianMixture.dir/src/multivariateGaussian.cpp.o"
+},
+{
+  "directory": "/home/erzis/programming/GaussianMixture_CUDA/build",
+  "command": "/usr/bin/c++ -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE -I/home/erzis/programming/GaussianMixture_CUDA/include -I/home/erzis/programming/GaussianMixture_CUDA/include/Defs -std=c++11 -pthread -g -std=gnu++11   -Wno-deprecated -o CMakeFiles/libGaussianMixture.dir/src/population.cpp.o -c /home/erzis/programming/GaussianMixture_CUDA/src/population.cpp",
+  "file": "/home/erzis/programming/GaussianMixture_CUDA/src/population.cpp",
+  "output": "CMakeFiles/libGaussianMixture.dir/src/population.cpp.o"
+},
+{
+  "directory": "/home/erzis/programming/GaussianMixture_CUDA/build",
+  "command": "/usr/bin/c++ -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE -I/home/erzis/programming/GaussianMixture_CUDA/include -I/home/erzis/programming/GaussianMixture_CUDA/include/Defs -std=c++11 -pthread -g -std=gnu++11   -Wno-deprecated -o CMakeFiles/libGaussianMixture.dir/src/recorder.cpp.o -c /home/erzis/programming/GaussianMixture_CUDA/src/recorder.cpp",
+  "file": "/home/erzis/programming/GaussianMixture_CUDA/src/recorder.cpp",
+  "output": "CMakeFiles/libGaussianMixture.dir/src/recorder.cpp.o"
+},
+{
+  "directory": "/home/erzis/programming/GaussianMixture_CUDA/build",
+  "command": "/usr/bin/nvcc -forward-unknown-to-host-compiler -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE --options-file CMakeFiles/libGaussianMixture.dir/includes_CUDA.rsp -g -std=c++11 \"--generate-code=arch=compute_75,code=[compute_75,sm_75]\"   -Wno-deprecated -x cu -c /home/erzis/programming/GaussianMixture_CUDA/src/CUDA_decomposition.cu -o CMakeFiles/libGaussianMixture.dir/src/CUDA_decomposition.cu.o",
+  "file": "/home/erzis/programming/GaussianMixture_CUDA/src/CUDA_decomposition.cu",
+  "output": "CMakeFiles/libGaussianMixture.dir/src/CUDA_decomposition.cu.o"
+},
+{
+  "directory": "/home/erzis/programming/GaussianMixture_CUDA/build",
+  "command": "/usr/bin/nvcc -forward-unknown-to-host-compiler -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE --options-file CMakeFiles/libGaussianMixture.dir/includes_CUDA.rsp -g -std=c++11 \"--generate-code=arch=compute_75,code=[compute_75,sm_75]\"   -Wno-deprecated -x cu -c /home/erzis/programming/GaussianMixture_CUDA/src/CUDA_kernels.cu -o CMakeFiles/libGaussianMixture.dir/src/CUDA_kernels.cu.o",
+  "file": "/home/erzis/programming/GaussianMixture_CUDA/src/CUDA_kernels.cu",
+  "output": "CMakeFiles/libGaussianMixture.dir/src/CUDA_kernels.cu.o"
+},
+{
+  "directory": "/home/erzis/programming/GaussianMixture_CUDA/build",
+  "command": "/usr/bin/c++ -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE -I/home/erzis/programming/GaussianMixture_CUDA/include -I/home/erzis/programming/GaussianMixture_CUDA/include/Defs -std=c++11 -pthread -g -std=gnu++11   -Wno-deprecated -o CMakeFiles/GaussianMixture.dir/main.cpp.o -c /home/erzis/programming/GaussianMixture_CUDA/main.cpp",
+  "file": "/home/erzis/programming/GaussianMixture_CUDA/main.cpp",
+  "output": "CMakeFiles/GaussianMixture.dir/main.cpp.o"
+}
+]

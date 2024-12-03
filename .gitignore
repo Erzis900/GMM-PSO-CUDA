@@ -30,5 +30,9 @@
 *.exe
 *.out
 *.app
-/build
 /log
+/build/.cmake
+/build/bin/CMakeFiles
+/build/CMakeFiles
+/build/GAUSSIANMIXTURE
+build/CMakeCache.txt
