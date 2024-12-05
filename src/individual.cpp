@@ -133,98 +133,33 @@ double Individual::computeValue(int gaussNo, const Eigen::MatrixXd &point) const
 void Individual::moveIndividual(const Individual &bestParticle)
 {
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
-    for (int j = 0; j < dim; j++)
-    {
-        // printf("%f, %f, %f, %f, %f, %f\n",c1,randdouble(0,1),(bestParticle.gaussianBoundaries)(j,1),gaussianBoundaries(j,1),c2,best_gaussianBoundaries[j]);
-        gaussianBoundariesChange[j] = gaussianBoundariesChange[j] + (c1 * distribution(generator) * (bestParticle.gaussianBoundaries[j].second - gaussianBoundaries[j].second)) + (c2 * distribution(generator) * (bestGaussianBoundaries[j] - gaussianBoundaries[j].second));
-        if (std::isinf(gaussianBoundariesChange[j]))
-            gaussianBoundariesChange[j] = 0;
-        gaussianBoundaries[j].second += gaussianBoundariesChange[j];
-        if (std::isinf(gaussianBoundaries[j].second))
-            gaussianBoundaries[j].second = std::numeric_limits<double>::max();
-        if (gaussianBoundaries[j].second < 0) // reset
-            gaussianBoundaries[j].second = bestParticle.gaussianBoundaries[j].second;
-        // printf("%f, %f\n",gaussianBoundaries(j,1),gaussianBoundaries_change[j]);
-    }
     for (int i = 0; i < gaussiansNo; i++)
     {
         for (int j = 0; j < dim; j++)
         {
+            chromosome[i].setCentroidChange(j, chromosome[i].getCentroidChange(j) + c1 * distribution(generator) * (bestParticle.chromosome[i].getCentroid(j) - chromosome[i].getCentroid(j)) + c2 * distribution(generator) * (bestPosition[i].getCentroid(j) - chromosome[i].getCentroid(j)));
+            if (abs(chromosome[i].getCentroidChange(j)) > ((inputDomain[j].second - inputDomain[j].first) * maxChange))
+            {
+                if (chromosome[i].getCentroidChange(j) < 0)
+                    chromosome[i].setCentroidChange(j, -(inputDomain[j].second - inputDomain[j].first) * maxChange);
+                else
+                    chromosome[i].setCentroidChange(j, (inputDomain[j].second - inputDomain[j].first) * maxChange);
+            }
+            chromosome[i].setCentroid(j, chromosome[i].getCentroid(j) + chromosome[i].getCentroidChange(j));
+
+            chromosome[i].setWidthChange(j, chromosome[i].getWidthChange(j) + c1 * distribution(generator) * (bestParticle.chromosome[i].getWidth(j) - chromosome[i].getWidth(j)) + c2 * distribution(generator) * (bestPosition[i].getWidth(j) - chromosome[i].getWidth(j)));
+            if (abs(chromosome[i].getWidthChange(j)) > (gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange)
+            {
+                if (chromosome[i].getWidthChange(j) < 0)
+                    chromosome[i].setWidthChange(j, -(gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange);
+                else
+                    chromosome[i].setWidthChange(j, (gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange);
+            }
+            chromosome[i].setWidth(j, chromosome[i].getWidth(j) + chromosome[i].getWidthChange(j));
+            if (chromosome[i].getWidth(j) < (gaussianBoundaries[j].first))
+                chromosome[i].setWidth(j, gaussianBoundaries[j].first);
             if (chromosome[i].getWidth(j) > (gaussianBoundaries[j].second))
-            {
-                std::uniform_real_distribution<double> distributionN(gaussianBoundaries[j].first, gaussianBoundaries[j].second);
-                chromosome[i].setWidth(j, distributionN(generator));
-            }
-        }
-    }
-    if (gaussiansNo != bestParticle.gaussiansNo)    
-    {
-        std::cout << "something is wrong no of gaussians differss\n";
-        getchar();
-    }
-    for (int i = 0; i < gaussiansNo; i++)
-    {
-        if (i < bestParticle.gaussiansNo)
-        {
-            for (int j = 0; j < dim; j++)
-            {
-                chromosome[i].setCentroidChange(j, chromosome[i].getCentroidChange(j) + c1 * distribution(generator) * (bestParticle.chromosome[i].getCentroid(j) - chromosome[i].getCentroid(j)) + c2 * distribution(generator) * (bestPosition[i].getCentroid(j) - chromosome[i].getCentroid(j)));
-                if (abs(chromosome[i].getCentroidChange(j)) > ((inputDomain[j].second - inputDomain[j].first) * maxChange))
-                {
-                    if (chromosome[i].getCentroidChange(j) < 0)
-                        chromosome[i].setCentroidChange(j, -(inputDomain[j].second - inputDomain[j].first) * maxChange);
-                    else
-                        chromosome[i].setCentroidChange(j, (inputDomain[j].second - inputDomain[j].first) * maxChange);
-                }
-                chromosome[i].setCentroid(j, chromosome[i].getCentroid(j) + chromosome[i].getCentroidChange(j));
-
-                chromosome[i].setWidthChange(j, chromosome[i].getWidthChange(j) + c1 * distribution(generator) * (bestParticle.chromosome[i].getWidth(j) - chromosome[i].getWidth(j)) + c2 * distribution(generator) * (bestPosition[i].getWidth(j) - chromosome[i].getWidth(j)));
-                if (abs(chromosome[i].getWidthChange(j)) > (gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange)
-                {
-                    if (chromosome[i].getWidthChange(j) < 0)
-                        chromosome[i].setWidthChange(j, -(gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange);
-                    else
-                        chromosome[i].setWidthChange(j, (gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange);
-                }
-                chromosome[i].setWidth(j, chromosome[i].getWidth(j) + chromosome[i].getWidthChange(j));
-                if (chromosome[i].getWidth(j) < (gaussianBoundaries[j].first))
-                    chromosome[i].setWidth(j, gaussianBoundaries[j].first);
-                if (chromosome[i].getWidth(j) > (gaussianBoundaries[j].second))
-                    chromosome[i].setWidth(j, gaussianBoundaries[j].second);
-            }
-        }
-        else
-        {
-            for (int j = 0; j < dim; j++)
-            {
-                //                std::cout << "centroid before " << chromosome[i].getCentroid(j) << " centroid best " << bestPosition[i].getCentroid(j) << "\n";
-                chromosome[i].setCentroidChange(j, chromosome[i].getCentroidChange(j) + c2 * distribution(generator) * (bestPosition[i].getCentroid(j) - chromosome[i].getCentroid(j)));
-                if (abs(chromosome[i].getCentroidChange(j)) > (inputDomain[j].second - inputDomain[j].first) * maxChange)
-                {
-                    if (chromosome[i].getCentroidChange(j) < 0)
-                        chromosome[i].setCentroidChange(j, -(inputDomain[j].second - inputDomain[j].first) * maxChange);
-                    else
-                        chromosome[i].setCentroidChange(j, (inputDomain[j].second - inputDomain[j].first) * maxChange);
-                }
-                chromosome[i].setCentroid(j, chromosome[i].getCentroid(j) + chromosome[i].getCentroidChange(j));
-                //                std::cout << "centroid change " << chromosome[i].getCentroidChange(j) << " centroid after " << chromosome[i].getCentroid(j) << "\n";
-
-                //                std::cout << "width before " << chromosome[i].getWidth(j) << " width best " << bestPosition[i].getWidth(j) << "\n";
-                chromosome[i].setWidthChange(j, chromosome[i].getWidthChange(j) + c2 * distribution(generator) * (bestPosition[i].getWidth(j) - chromosome[i].getWidth(j)));
-                if (abs(chromosome[i].getWidthChange(j)) > (gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange)
-                {
-                    if (chromosome[i].getWidthChange(j) < 0)
-                        chromosome[i].setWidthChange(j, -(gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange);
-                    else
-                        chromosome[i].setWidthChange(j, (gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange);
-                }
-                chromosome[i].setWidth(j, chromosome[i].getWidth(j) + chromosome[i].getWidthChange(j));
-                if (chromosome[i].getWidth(j) < (gaussianBoundaries[j].first))
-                    chromosome[i].setWidth(j, gaussianBoundaries[j].first);
-                if (chromosome[i].getWidth(j) > (gaussianBoundaries[j].second))
-                    chromosome[i].setWidth(j, gaussianBoundaries[j].second);
-                //                std::cout << "width change " << chromosome[i].getWidthChange(j) << " centroid after " << chromosome[i].getWidth(j) << "\n";
-            }
+                chromosome[i].setWidth(j, gaussianBoundaries[j].second);
         }
     }
 }
