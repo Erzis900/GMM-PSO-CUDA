@@ -157,7 +157,7 @@ void Individual::moveIndividual(const Individual &bestParticle)
             }
         }
     }
-    if (gaussiansNo != bestParticle.gaussiansNo)
+    if (gaussiansNo != bestParticle.gaussiansNo)    
     {
         std::cout << "something is wrong no of gaussians differss\n";
         getchar();

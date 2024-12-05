@@ -455,12 +455,31 @@ double GaussianMixture::computeIndividualFitness(const Eigen::MatrixXd &_input, 
     return fitness;
 }
 
+void GaussianMixture::loadVectors()
+{
+    for (int i = 0; i < (int)population.getPopulationSize(); i++)
+    {
+        tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), config.outputsNo);
+        if(computeCoef(i, tempCoef))
+        {
+            allCoefs.push_back(tempCoef);
+        }
+
+        for (int j = 0; j < config.gaussiansNo; j++)
+        {
+            for (int k = 0; k < config.inputsNo; k++)
+            {
+                centroids.push_back(population.getIndividual(i).getChromosome(j).getCentroid(k));
+                widths.push_back(population.getIndividual(i).getChromosome(j).getWidth(k));
+            }
+        }
+    }
+}
+
 /// search for the best Approximation function - PSO method
 void GaussianMixture::train()
 {
     #ifdef CPU
-        // trainCPU();
-        // currentEpoch = 0;
         for (int i = 0; i < (int)population.getPopulationSize(); i++)
         { // fitness evaluation for every individual
             tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), config.outputsNo);
@@ -469,6 +488,11 @@ void GaussianMixture::train()
             std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
         }
     #endif
+
+    curandState* state;
+    cudaMalloc(&state, sizeof(curandState) * population.getPopulationSize());
+
+    WInitRNG(state, population.getPopulationSize());
 
     double *d_points;
     double *d_expectedOutput;
@@ -494,31 +518,7 @@ void GaussianMixture::train()
     cudaMemcpy(d_points, flattenedPoints.data(), inputSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_expectedOutput, output.data(), outputSize, cudaMemcpyHostToDevice);
 
-    for (int i = 0; i < (int)population.getPopulationSize(); i++)
-    {
-        for (int j = 0; j < config.gaussiansNo; j++)
-        {
-            for (int k = 0; k < config.inputsNo; k++)
-            {
-                centroids.push_back(population.getIndividual(i).getChromosome(j).getCentroid(k));
-                widths.push_back(population.getIndividual(i).getChromosome(j).getWidth(k));
-            }
-        }
-    }
-
-    for (int i = 0; i < (int)population.getPopulationSize(); i++)
-    {
-        tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), config.outputsNo);
-        if(computeCoef(i, tempCoef))
-        {
-            allCoefs.push_back(tempCoef);
-        }
-        else
-        {
-            std::cout << "computeCoef failed!\n";
-            return;
-        }
-    }
+    loadVectors();
 
     //double* fitnessResults = new double[features.rows()];
     std::vector<double> fitnessResults(features.rows(), 0.0);
@@ -552,6 +552,26 @@ void GaussianMixture::train()
     // save initial values
     bestFitnessRecorder.save(bestFitness);
     averageFitnessRecorder.save(population.getAverageFitness());
+
+    for (int i = 0; i < population.getPopulationSize(); i++)
+    {
+        for (int j = 0; j < config.inputsNo; j++)
+        {
+            gaussianBoundariesChange.push_back(population.getIndividual(i).getGaussianBoundariesChange().at(j));
+            gaussianBoundariesV.push_back(population.getIndividual(i).getGaussianBoundaries().at(j).first);
+            gaussianBoundariesV.push_back(population.getIndividual(i).getGaussianBoundaries().at(j).second);
+
+            pBestGaussianBoundaries.push_back(population.getIndividual(i).getpBestGaussianBoundaries().at(j));
+
+            if(i == bestIndividual)
+            {
+                bestGaussianBoundaries.push_back(population.getIndividual(i).getGaussianBoundaries().at(j).first);
+                bestGaussianBoundaries.push_back(population.getIndividual(i).getGaussianBoundaries().at(j).second);
+            }
+        }
+    }
+
+    updateParticlesCUDA(state, config.inputsNo, config.trainSize, population.getPopulationSize(), bestGaussianBoundaries, pBestGaussianBoundaries, gaussianBoundariesV, gaussianBoundariesChange); 
 
     while (currentEpoch < config.maxIterations)
     {
@@ -641,6 +661,7 @@ void GaussianMixture::train()
 
     cudaFree(d_points);
     cudaFree(d_expectedOutput);
+    cudaFree(d_fitnessResults);
 }
 
 /// compute coefficients
