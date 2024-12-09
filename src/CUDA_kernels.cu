@@ -146,7 +146,7 @@ __global__ void updateKernel(double* d_centroids, double* d_widths, curandState 
                 double r1 = curand_uniform_double(&state[particleNo]);
                 double r2 = curand_uniform_double(&state[particleNo]);
 
-                // centroidChanges[particleNo * gaussiansNo + dimNo] += c1 * r1 * (d_centroids[bestIndex * gaussiansNo + dimNo] - d_centroids[particleNo * gaussiansNo + dimNo]) + c2 * r2 * (bestPositionCentroids[particleNo * gaussiansNo + dimNo] - d_centroids[particleNo * gaussiansNo + dimNo]);
+                printf("%f\n", d_centroids[particleNo * gaussiansNo + dimNo]);
                 centroidChanges[particleNo * gaussiansNo + dimNo] += c1 * r1 * (d_centroids[bestIndex * gaussiansNo + dimNo] - d_centroids[particleNo * gaussiansNo + dimNo]) + c2 * r2 * (bestPositionCentroids[particleNo * gaussiansNo + dimNo] - d_centroids[particleNo * gaussiansNo + dimNo]);
 
                 if(abs(centroidChanges[particleNo * gaussiansNo + dimNo]) > ((inputDomains[particleNo * gaussiansNo + dimNo + 1] - inputDomains[particleNo * gaussiansNo + dimNo]) * maxChange))
@@ -189,39 +189,7 @@ __global__ void updateKernel(double* d_centroids, double* d_widths, curandState 
                 }
             }
         }
-
-        /*std::uniform_real_distribution<double> distribution(0.0, 1.0);
-        for (int i = 0; i < gaussiansNo; i++)
-        {
-            for (int j = 0; j < dim; j++)
-            {
-                chromosome[i].setCentroidChange(j, chromosome[i].getCentroidChange(j) + c1 * distribution(generator) * (bestParticle.chromosome[i].getCentroid(j) - chromosome[i].getCentroid(j)) + c2 * distribution(generator) * (bestPosition[i].getCentroid(j) - chromosome[i].getCentroid(j)));
-                if (abs(chromosome[i].getCentroidChange(j)) > ((inputDomain[j].second - inputDomain[j].first) * maxChange))
-                {
-                    if (chromosome[i].getCentroidChange(j) < 0)
-                        chromosome[i].setCentroidChange(j, -(inputDomain[j].second - inputDomain[j].first) * maxChange);
-                    else
-                        chromosome[i].setCentroidChange(j, (inputDomain[j].second - inputDomain[j].first) * maxChange);
-                }
-                chromosome[i].setCentroid(j, chromosome[i].getCentroid(j) + chromosome[i].getCentroidChange(j));
-
-                chromosome[i].setWidthChange(j, chromosome[i].getWidthChange(j) + c1 * distribution(generator) * (bestParticle.chromosome[i].getWidth(j) - chromosome[i].getWidth(j)) + c2 * distribution(generator) * (bestPosition[i].getWidth(j) - chromosome[i].getWidth(j)));
-                if (abs(chromosome[i].getWidthChange(j)) > (gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange)
-                {
-                    if (chromosome[i].getWidthChange(j) < 0)
-                        chromosome[i].setWidthChange(j, -(gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange);
-                    else
-                        chromosome[i].setWidthChange(j, (gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange);
-                }
-                chromosome[i].setWidth(j, chromosome[i].getWidth(j) + chromosome[i].getWidthChange(j));
-                if (chromosome[i].getWidth(j) < (gaussianBoundaries[j].first))
-                    chromosome[i].setWidth(j, gaussianBoundaries[j].first);
-                if (chromosome[i].getWidth(j) > (gaussianBoundaries[j].second))
-                    chromosome[i].setWidth(j, gaussianBoundaries[j].second);
-            }
-        }*/
     }
-    //d_centroids = centroids;
 }
 
 __host__ void fitnessAgain(double *d_points, double *d_expectedOutput, double *d_fitnessResults, std::vector<Eigen::MatrixXd> &allCoefs, double *fitnessResults, int noParticles, int gaussiansNo, int dim, int noPoints)

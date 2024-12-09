@@ -16,7 +16,6 @@
 #include <iostream>
 
 #include "../include/CUDA_decomposition.h"
-#include "../include/CUDA_kernels.h"
 
 #define CPU
 
@@ -39,6 +38,28 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     setBoundaries();
     setParameters();
     initializeMatrices(); // initialize matrices
+
+    cudaMalloc(&state, sizeof(curandState) * population.getPopulationSize());
+
+    centroidChangesSize = centroidChanges.size() * sizeof(double);
+    widthChangesSize = widthChanges.size() * sizeof(double);
+    bestPositionCentroidsSize = bestPositionCentroids.size() * sizeof(double);
+    gaussianBoundariesSize = gaussianBoundaries.size() * sizeof(double);
+    inputDomainsSize = inputDomains.size() * sizeof(double);
+
+    cudaMalloc(&d_centroidChanges, centroidChangesSize);
+    cudaMalloc(&d_widthChanges, widthChangesSize);
+    cudaMalloc(&d_bestPositionCentroids, bestPositionCentroidsSize);
+    cudaMalloc(&d_gaussianBoundaries, gaussianBoundariesSize);
+    cudaMalloc(&d_inputDomains, inputDomainsSize);
+
+    inputSize = features.rows() * features.cols() * sizeof(double);
+    outputSize = output.rows() * output.cols() * sizeof(double);
+    fitnessResultsSize = features.rows() * sizeof(double);
+
+    cudaMalloc(&d_points, inputSize);
+    cudaMalloc(&d_expectedOutput, outputSize);
+    cudaMalloc(&d_fitnessResults, fitnessResultsSize);
 }
 
 /// destructor
@@ -489,22 +510,7 @@ void GaussianMixture::train()
         }
     #endif
 
-    curandState* state;
-    cudaMalloc(&state, sizeof(curandState) * population.getPopulationSize());
-
     WInitRNG(state, population.getPopulationSize());
-
-    double *d_points;
-    double *d_expectedOutput;
-    double *d_fitnessResults;
-
-    size_t inputSize = features.rows() * features.cols() * sizeof(double);
-    size_t outputSize = output.rows() * output.cols() * sizeof(double);
-    size_t fitnessResultsSize = features.rows() * sizeof(double);
-
-    cudaMalloc(&d_points, inputSize);
-    cudaMalloc(&d_expectedOutput, outputSize);
-    cudaMalloc(&d_fitnessResults, fitnessResultsSize);
 
     std::vector<double> flattenedPoints;
     for (int i = 0; i < features.rows(); i++)
@@ -572,24 +578,6 @@ void GaussianMixture::train()
             }
         }
     }
-
-    double* d_centroidChanges;
-    double* d_widthChanges;
-    double* d_bestPositionCentroids;
-    double* d_gaussianBoundaries;
-    double* d_inputDomains;
-
-    size_t centroidChangesSize = centroidChanges.size() * sizeof(double);
-    size_t widthChangesSize = widthChanges.size() * sizeof(double);
-    size_t bestPositionCentroidsSize = bestPositionCentroids.size() * sizeof(double);
-    size_t gaussianBoundariesSize = gaussianBoundaries.size() * sizeof(double);
-    size_t inputDomainsSize = inputDomains.size() * sizeof(double);
-
-    cudaMalloc(&d_centroidChanges, centroidChangesSize);
-    cudaMalloc(&d_widthChanges, widthChangesSize);
-    cudaMalloc(&d_bestPositionCentroids, bestPositionCentroidsSize);
-    cudaMalloc(&d_gaussianBoundaries, gaussianBoundariesSize);
-    cudaMalloc(&d_inputDomains, inputDomainsSize);
 
     cudaMemcpy(d_centroidChanges, centroidChanges.data(), centroidChangesSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_widthChanges, widthChanges.data(), widthChangesSize, cudaMemcpyHostToDevice);
