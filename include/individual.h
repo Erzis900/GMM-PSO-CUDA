@@ -55,8 +55,13 @@ public:
     /// Get Gaussians no
     inline int getGaussiansNo() const { return gaussiansNo; };
 
-    MultivariateGaussian getChromosome(int gaussNo) { return chromosome[gaussNo]; };
+    inline std::vector<double> getGaussianBoundariesChange() const { return gaussianBoundariesChange; };
 
+    MultivariateGaussian getChromosome(int gaussNo) { return chromosome[gaussNo]; };
+    std::vector<double> getpBestGaussianBoundaries() { return bestGaussianBoundaries; };
+    MultivariateGaussian getBestPosition(int no) { return bestPosition[no]; };
+
+    std::pair<double, double> getInputDomain(int no) { return inputDomain[no]; };
 private:
     /// Random number generator
     std::default_random_engine generator;

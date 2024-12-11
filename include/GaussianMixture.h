@@ -20,6 +20,8 @@
 #include <memory>
 #include <iostream>
 
+#include "../include/CUDA_kernels.h"
+
 using namespace approximator;
 
 class GaussianMixture : public Approximation
@@ -88,7 +90,42 @@ public:
     std::vector<Eigen::MatrixXd> allCoefs;
     std::vector<double> centroids;
     std::vector<double> widths;
+
+    std::vector<double> gaussianBoundariesV;
+    std::vector<double> centroidChanges;
+    std::vector<double> widthChanges;
+    std::vector<double> bestPositionCentroids;
+    std::vector<double> inputDomains;
 private:
+    double* d_centroidChanges;
+    double* d_widthChanges;
+    double* d_bestPositionCentroids;
+    double* d_gaussianBoundaries;
+    double* d_inputDomains;
+
+    double *d_points;
+    double *d_expectedOutput;
+    double *d_fitnessResults;
+
+    double *d_centroids;
+    double *d_widths;
+    double *d_polyCoef;
+
+    size_t centroidChangesSize;
+    size_t widthChangesSize;
+    size_t bestPositionCentroidsSize;
+    size_t gaussianBoundariesSize;
+    size_t inputDomainsSize;
+
+    size_t inputSize;
+    size_t outputSize;
+    size_t fitnessResultsSize;
+
+    size_t centroidsSize;
+    size_t widthsSize;
+
+    curandState* state;
+
     /// read train/test/verification data
     void readInOutData(const std::string &filename, Eigen::MatrixXd &_input, Eigen::MatrixXd &_output, int &vecLength);
     /// read train/test/verification data
@@ -123,6 +160,7 @@ private:
     double normalizeValue(double value, const std::pair<double, double> &minMax);
     /// denormalize output
     double denormalizeValue(double value, const std::pair<double, double> &minMax);
+    void loadVectors();
 
     /// population of individuals
     Population population;
