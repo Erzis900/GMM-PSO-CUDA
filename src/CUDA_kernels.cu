@@ -1,10 +1,6 @@
 #include "../include/CUDA_kernels.h"
 #include "CUDA_kernels.h"
 
-double *d_centroids;
-double *d_widths;
-double *d_polyCoef;
-
 __host__ void WInitRNG(curandState *state, int noPoints)
 {
     int blockSize = 256;
@@ -13,11 +9,8 @@ __host__ void WInitRNG(curandState *state, int noPoints)
     InitRNG<<<numBlocks, blockSize>>>(state, clock());
 }
 
-__host__ void calculateFitnessCUDA(double *d_points, double *d_expectedOutput, double *d_fitnessResults, std::vector<Eigen::MatrixXd> &allCoefs, double *fitnessResults, std::vector<double> centroids, std::vector<double> &widths, int noParticles, int gaussiansNo, int dim, int noPoints)
+__host__ void calculateFitnessCUDA(double* d_centroids, double* d_widths, double* d_polyCoef, double *d_points, double *d_expectedOutput, double *d_fitnessResults, std::vector<Eigen::MatrixXd> &allCoefs, double *fitnessResults, std::vector<double> centroids, std::vector<double> &widths, int noParticles, int gaussiansNo, int dim, int noPoints)
 {
-    size_t centroidsSize = centroids.size() * sizeof(double);
-    size_t widthsSize = widths.size() * sizeof(double);
-
     std::vector<double> flattenedCoefs;
 
     size_t coefSize = 0;
@@ -28,18 +21,10 @@ __host__ void calculateFitnessCUDA(double *d_points, double *d_expectedOutput, d
     }
 
     cudaMalloc(&d_polyCoef, coefSize);
-    cudaMalloc(&d_centroids, centroidsSize);
-    cudaMalloc(&d_widths, widthsSize);
-
     cudaMemcpy(d_polyCoef, flattenedCoefs.data(), coefSize, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_centroids, centroids.data(), centroidsSize, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_widths, widths.data(), widthsSize, cudaMemcpyHostToDevice);
 
     runKernel(noPoints, d_points, d_expectedOutput, d_polyCoef, gaussiansNo, d_fitnessResults, d_centroids, d_widths, noParticles, dim);
     cudaMemcpy(fitnessResults, d_fitnessResults, noPoints * sizeof(double), cudaMemcpyDeviceToHost);
-
-    cudaFree(d_polyCoef);
-    cudaFree(d_fitnessResults);
 }
 
 __host__ void updateParticlesCUDA(curandState *state, int dim, int noPoints, int noParticles, std::vector<double> gaussianBoundaries, int gaussiansNo)
@@ -62,7 +47,7 @@ __global__ void evaluateKernel(int noPoints, double *points, double *expectedOut
             double expectedValue = expectedOutput[pointNo];
 
             double computedValue = 0.0;
-            for (int coefNo = 0; coefNo < noCoef; coefNo++)
+            for (int coefNo = 0; coefNo < noCoef; coefNo++) // gaussy
             {
                 double c = polyCoef[particleNo * noCoef + coefNo];
 
@@ -93,10 +78,13 @@ __global__ void evaluateKernel(int noPoints, double *points, double *expectedOut
     }
 }
 
-__host__ void runUpdateKernel(curandState *state, int dim, int noPoints, int noParticles, double *gaussianBoundaries, int gaussiansNo, int bestIndex, double* centroidChanges, double* widthChanges, double* bestPositionCentroids, double* inputDomains)
+__host__ void runUpdateKernel(double* d_centroids, double* d_widths, curandState *state, int dim, int noPoints, int noParticles, double *gaussianBoundaries, int gaussiansNo, int bestIndex, double* centroidChanges, double* widthChanges, double* bestPositionCentroids, double* inputDomains)
 {
     int blockSize = 256;
     int numBlocks = (noPoints + blockSize - 1) / blockSize;
+
+    // int blockSize = 1;
+    // int numBlocks = 1;
 
     updateKernel<<<numBlocks, blockSize>>>(d_centroids, d_widths, state, dim, noPoints, noParticles, gaussianBoundaries, gaussiansNo, bestIndex, centroidChanges, widthChanges, bestPositionCentroids, inputDomains);
 
@@ -148,81 +136,51 @@ __global__ void updateKernel(double* d_centroids, double* d_widths, curandState 
 
                 // double centroid = centroids[particleNo * noCoef * dim + coefNo * dim + dimNo];
 
-                printf("%f\n", d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]);
+                printf("r1 r2 %f %f\n", r1, r2);
+                printf("d_centr: %f\n", d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]);
+                printf("Centroids changes: %f\n", centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]);
                 centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] += c1 * r1 * (d_centroids[bestIndex * gaussiansNo + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) + c2 * r2 * (bestPositionCentroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]);
 
-                if(abs(centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) > ((inputDomains[particleNo * gaussiansNo + dimNo + 1] - inputDomains[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange))
-                {
-                    if(centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] < 0)
-                    {
-                        centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = -(inputDomains[particleNo * gaussiansNo + dimNo + 1] - inputDomains[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
-                    }
-                    else 
-                    {
-                        centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = (inputDomains[particleNo * gaussiansNo + dimNo + 1] - inputDomains[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
-                    }
-                }
+                // if(abs(centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) > ((inputDomains[particleNo * gaussiansNo + dimNo + 1] - inputDomains[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange))
+                // {
+                //     if(centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] < 0)
+                //     {
+                //         centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = -(inputDomains[particleNo * gaussiansNo + dimNo + 1] - inputDomains[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
+                //     }
+                //     else 
+                //     {
+                //         centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = (inputDomains[particleNo * gaussiansNo + dimNo + 1] - inputDomains[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
+                //     }
+                // }
 
-                d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] += centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo];
+                //d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] += centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo];
+                d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = 1;
 
                 widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] += c1 * r1 * (d_widths[bestIndex * gaussiansNo + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) + c2 * r2 * (bestPositionCentroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]);
 
-                if(abs(widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) > ((gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1] - gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange))
-                {
-                    if(widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] < 0)
-                    {
-                        widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = -(gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1] - gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
-                    }
-                    else
-                    {
-                        widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = (gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1] - gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
-                    }
-                }
+                // if(abs(widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) > ((gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1] - gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange))
+                // {
+                //     if(widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] < 0)
+                //     {
+                //         widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = -(gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1] - gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
+                //     }
+                //     else
+                //     {
+                //         widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = (gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1] - gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
+                //     }
+                // }
 
                 d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] += widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo];   
 
-                if(d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] < gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo])
-                {
-                    d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo];
-                }
-                if(d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] > gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1])
-                {
-                    d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1];
-                }
+                // if(d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] < gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo])
+                // {
+                //     d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo];
+                // }
+                // if(d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] > gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1])
+                // {
+                //     d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1];
+                // }
             }
         }
     }
-}
-
-__host__ void fitnessAgain(double *d_points, double *d_expectedOutput, double *d_fitnessResults, std::vector<Eigen::MatrixXd> &allCoefs, double *fitnessResults, int noParticles, int gaussiansNo, int dim, int noPoints)
-{
-    std::vector<double> flattenedCoefs;
-
-    size_t coefSize = 0;
-    for (auto &coef : allCoefs)
-    {
-        coefSize += coef.rows() * coef.cols() * sizeof(double);
-        flattenedCoefs.insert(flattenedCoefs.end(), coef.data(), coef.data() + coef.rows() * coef.cols());
-    }
-
-    cudaMalloc(&d_polyCoef, coefSize);
-
-    cudaMemcpy(d_polyCoef, flattenedCoefs.data(), coefSize, cudaMemcpyHostToDevice);
-
-    runFitnessKernelAgain(noPoints, d_points, d_expectedOutput, d_polyCoef, gaussiansNo, d_fitnessResults, noParticles, dim);
-    cudaMemcpy(fitnessResults, d_fitnessResults, noPoints * sizeof(double), cudaMemcpyDeviceToHost);
-
-    cudaFree(d_polyCoef);
-    cudaFree(d_fitnessResults);
-}
-
-__host__ void runFitnessKernelAgain(int noPoints, double *points, double *expectedOutput, double *polyCoef, int noCoef, double *fitnessResults, int noParticles, int dim)
-{
-    int blockSize = 256;
-    int numBlocks = (noPoints + blockSize - 1) / blockSize;
-
-    evaluateKernel<<<numBlocks, blockSize>>>(noPoints, points, expectedOutput, polyCoef, noCoef, fitnessResults, d_centroids, d_widths, noParticles, dim);
-    // updateKernel<<<numBlocks, blockSize>>>(state, dim, noPoints, noParticles);
-
-    cudaDeviceSynchronize();
 }

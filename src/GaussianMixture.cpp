@@ -526,9 +526,18 @@ void GaussianMixture::train()
 
     loadVectors();
 
+    centroidsSize = centroids.size() * sizeof(double);
+    widthsSize = widths.size() * sizeof(double);
+
+    cudaMalloc(&d_centroids, centroidsSize);
+    cudaMalloc(&d_widths, widthsSize);
+
+    cudaMemcpy(d_centroids, centroids.data(), centroidsSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_widths, widths.data(), widthsSize, cudaMemcpyHostToDevice);
+
     //double* fitnessResults = new double[features.rows()];
     std::vector<double> fitnessResults(features.rows(), 0.0);
-    calculateFitnessCUDA(d_points, d_expectedOutput, d_fitnessResults, allCoefs, fitnessResults.data(), centroids, widths, population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
+    calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, allCoefs, fitnessResults.data(), centroids, widths, population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
 
     for (int i = 0; i < population.getPopulationSize(); i++)
     {
@@ -627,12 +636,10 @@ void GaussianMixture::train()
             }
         }
 
-        runUpdateKernel(state, config.inputsNo, config.trainSize, population.getPopulationSize(), d_gaussianBoundaries, config.gaussiansNo, bestIndividual, d_centroidChanges, d_widthChanges, d_bestPositionCentroids, d_inputDomains);
+        runUpdateKernel(d_centroids, d_widths,state, config.inputsNo, config.trainSize, population.getPopulationSize(), d_gaussianBoundaries, config.gaussiansNo, bestIndividual, d_centroidChanges, d_widthChanges, d_bestPositionCentroids, d_inputDomains);
 
         fitnessResults.clear();
-        fitnessAgain(d_points, d_expectedOutput, d_fitnessResults, allCoefs, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
-        
-        // calculateFitnessCUDA(d_points, d_expectedOutput, d_fitnessResults, allCoefs, fitnessResults.data(), centroids, widths, population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
+        calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, allCoefs, fitnessResults.data(), centroids, widths, population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
 
         for (int i = 0; i < population.getPopulationSize(); i++)
         {
@@ -680,6 +687,14 @@ void GaussianMixture::train()
     cudaFree(d_points);
     cudaFree(d_expectedOutput);
     cudaFree(d_fitnessResults);
+    cudaFree(d_polyCoef);
+    cudaFree(d_centroids);
+    cudaFree(d_widths);
+    cudaFree(d_centroidChanges);
+    cudaFree(d_widthChanges);
+    cudaFree(d_bestPositionCentroids);
+    cudaFree(d_gaussianBoundaries);
+    cudaFree(d_inputDomains);
 }
 
 /// compute coefficients
@@ -719,7 +734,7 @@ bool GaussianMixture::computeCoef(unsigned int individual_no, Eigen::MatrixXd &r
     //(*G).llt().solve(*p,result_coef);
     //  a little bit faster llt
     G.llt().solveInPlace(p);
-    //CUDA_QRfactorization(G.data(), G.rows(), G.cols(), p.data(), p.rows(), p.cols(), resultCoef.data(), resultCoef.rows());
+    // CUDA_QRfactorization(G.data(), G.rows(), G.cols(), p.data(), p.rows(), p.cols(), resultCoef.data(), resultCoef.rows());
     resultCoef = p;
     // LU
     //(*G).lu().solve(*p,result_coef);
