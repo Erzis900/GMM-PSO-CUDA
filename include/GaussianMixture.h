@@ -95,11 +95,13 @@ public:
     std::vector<double> centroidChanges;
     std::vector<double> widthChanges;
     std::vector<double> bestPositionCentroids;
+    std::vector<double> bestPositionWidths;
     std::vector<double> inputDomains;
 private:
     double* d_centroidChanges;
     double* d_widthChanges;
     double* d_bestPositionCentroids;
+    double* d_bestPositionWidths;
     double* d_gaussianBoundaries;
     double* d_inputDomains;
 
@@ -114,6 +116,7 @@ private:
     size_t centroidChangesSize;
     size_t widthChangesSize;
     size_t bestPositionCentroidsSize;
+    size_t bestPositionWidthsSize;
     size_t gaussianBoundariesSize;
     size_t inputDomainsSize;
 

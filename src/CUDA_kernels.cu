@@ -27,13 +27,6 @@ __host__ void calculateFitnessCUDA(double* d_centroids, double* d_widths, double
     cudaMemcpy(fitnessResults, d_fitnessResults, noPoints * sizeof(double), cudaMemcpyDeviceToHost);
 }
 
-__host__ void updateParticlesCUDA(curandState *state, int dim, int noPoints, int noParticles, std::vector<double> gaussianBoundaries, int gaussiansNo)
-{
-    //runUpdateKernel(state, dim, noPoints, noParticles, d_gaussianBoundaries, gaussiansNo);
-
-    //cudaFree(d_gaussianBoundaries);
-}
-
 __global__ void evaluateKernel(int noPoints, double *points, double *expectedOutput, double *polyCoef, int noCoef, double *fitnessResults, double *centroids, double *widths, int noParticles, int dim)
 {
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
@@ -78,7 +71,7 @@ __global__ void evaluateKernel(int noPoints, double *points, double *expectedOut
     }
 }
 
-__host__ void runUpdateKernel(double* d_centroids, double* d_widths, curandState *state, int dim, int noPoints, int noParticles, double *gaussianBoundaries, int gaussiansNo, int bestIndex, double* centroidChanges, double* widthChanges, double* bestPositionCentroids, double* inputDomains)
+__host__ void runUpdateKernel(double* d_centroids, double* d_widths, curandState *state, int dim, int noPoints, int noParticles, double *gaussianBoundaries, int gaussiansNo, int bestIndex, double* centroidChanges, double* widthChanges, double* bestPositionCentroids, double* bestPositionWidths, double* inputDomains)
 {
     int blockSize = 256;
     int numBlocks = (noPoints + blockSize - 1) / blockSize;
@@ -86,7 +79,7 @@ __host__ void runUpdateKernel(double* d_centroids, double* d_widths, curandState
     // int blockSize = 1;
     // int numBlocks = 1;
 
-    updateKernel<<<numBlocks, blockSize>>>(d_centroids, d_widths, state, dim, noPoints, noParticles, gaussianBoundaries, gaussiansNo, bestIndex, centroidChanges, widthChanges, bestPositionCentroids, inputDomains);
+    updateKernel<<<numBlocks, blockSize>>>(d_centroids, d_widths, state, dim, noPoints, noParticles, gaussianBoundaries, gaussiansNo, bestIndex, centroidChanges, widthChanges, bestPositionCentroids, bestPositionWidths, inputDomains);
 
     cudaDeviceSynchronize();
 }
@@ -105,7 +98,6 @@ __host__ void runKernel(int noPoints, double *points, double *expectedOutput, do
     int numBlocks = (noPoints + blockSize - 1) / blockSize;
 
     evaluateKernel<<<numBlocks, blockSize>>>(noPoints, points, expectedOutput, polyCoef, noCoef, fitnessResults, centroids, widths, noParticles, dim);
-    // updateKernel<<<numBlocks, blockSize>>>(state, dim, noPoints, noParticles);
 
     cudaDeviceSynchronize();
 }
@@ -116,7 +108,7 @@ __global__ void InitRNG(curandState *state, unsigned long long seed)
     curand_init(seed, idx, 0, &state[idx]);
 }
 
-__global__ void updateKernel(double* d_centroids, double* d_widths, curandState *state, int dim, int noPoints, int noParticles, double *gaussianBoundaries, int gaussiansNo, int bestIndex, double* centroidChanges, double* widthChanges, double* bestPositionCentroids, double* inputDomains)
+__global__ void updateKernel(double* d_centroids, double* d_widths, curandState *state, int dim, int noPoints, int noParticles, double *gaussianBoundaries, int gaussiansNo, int bestIndex, double* centroidChanges, double* widthChanges, double* bestPositionCentroids, double* bestPositionWidths, double* inputDomains)
 {
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
@@ -134,52 +126,63 @@ __global__ void updateKernel(double* d_centroids, double* d_widths, curandState 
                 double r1 = curand_uniform_double(&state[particleNo]);
                 double r2 = curand_uniform_double(&state[particleNo]);
 
-                // double centroid = centroids[particleNo * noCoef * dim + coefNo * dim + dimNo];
+                // printf("d_centroids: %f\n", d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
-                printf("r1 r2 %f %f\n", r1, r2);
-                printf("d_centr: %f\n", d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]);
-                printf("Centroids changes: %f\n", centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]);
-                centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] += c1 * r1 * (d_centroids[bestIndex * gaussiansNo + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) + c2 * r2 * (bestPositionCentroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]);
+                centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * r1 * (d_centroids[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
+                + c2 * r2 * (bestPositionCentroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
-                // if(abs(centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) > ((inputDomains[particleNo * gaussiansNo + dimNo + 1] - inputDomains[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange))
-                // {
-                //     if(centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] < 0)
-                //     {
-                //         centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = -(inputDomains[particleNo * gaussiansNo + dimNo + 1] - inputDomains[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
-                //     }
-                //     else 
-                //     {
-                //         centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = (inputDomains[particleNo * gaussiansNo + dimNo + 1] - inputDomains[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
-                //     }
-                // }
+                printf("Before Centroids changes: %f\n", centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
-                //d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] += centroidChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo];
-                d_centroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = 1;
+                if(abs(centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) > ((inputDomains[4 * particleNo + dim * dimNo + 1] - inputDomains[4 * particleNo + dim * dimNo]) * maxChange))
+                {
+                    if(centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] < 0)
+                    {
+                        centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = -(inputDomains[4 * particleNo + dim * dimNo + 1] - inputDomains[4 * particleNo + dim * dimNo]) * maxChange;
+                    }
+                    else 
+                    {
+                        centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = (inputDomains[4 * particleNo + dim * dimNo + 1] - inputDomains[4 * particleNo + dim * dimNo]) * maxChange;
+                    }
+                }
 
-                widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] += c1 * r1 * (d_widths[bestIndex * gaussiansNo + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) + c2 * r2 * (bestPositionCentroids[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]);
+                printf("After Centroids changes: %f\n", centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
+                // d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = 0;
+                printf("Before d_centroids: %f\n", d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
-                // if(abs(widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) > ((gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1] - gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange))
-                // {
-                //     if(widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] < 0)
-                //     {
-                //         widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = -(gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1] - gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
-                //     }
-                //     else
-                //     {
-                //         widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = (gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1] - gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo]) * maxChange;
-                //     }
-                // }
+                d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo];
 
-                d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] += widthChanges[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo];   
+                printf("After d_centroids: %f\n", d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
-                // if(d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] < gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo])
-                // {
-                //     d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = gaussianBoundaries[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo];
-                // }
-                // if(d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] > gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1])
-                // {
-                //     d_widths[particleNo * gaussiansNo * dim + gaussiansNo * dim + dimNo] = gaussianBoundaries[particleNo * gaussiansNo + dimNo + 1];
-                // }
+                printf("Before Width changes: %f\n", centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
+
+                widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * r1 * (d_widths[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
+                + c2 * r2 * (bestPositionWidths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
+
+                if(abs(widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) > ((gaussianBoundaries[4 * particleNo + dim * dimNo + 1] - gaussianBoundaries[4 * particleNo + dim * dimNo]) * maxChange))
+                {
+                    if(widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] < 0)
+                    {
+                        widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = -(gaussianBoundaries[4 * particleNo + dim * dimNo + 1] - gaussianBoundaries[4 * particleNo + dim * dimNo]) * maxChange;
+                    }
+                    else
+                    {
+                        widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = (gaussianBoundaries[4 * particleNo + dim * dimNo + 1] - gaussianBoundaries[4 * particleNo + dim * dimNo]) * maxChange;
+                    }
+                }
+
+                printf("After Width changes: %f\n", centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
+
+                d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo];   
+                // d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = 0;
+
+                if(d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] < gaussianBoundaries[4 * particleNo + dim * dimNo])
+                {
+                    d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = gaussianBoundaries[4 * particleNo + dim * dimNo];
+                }
+                if(d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] > gaussianBoundaries[4 * particleNo + dim * dimNo + 1])
+                {
+                    d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = gaussianBoundaries[4 * particleNo + dim * dimNo + 1];
+                }
             }
         }
     }
