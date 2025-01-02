@@ -43,13 +43,13 @@
 },
 {
   "directory": "/home/erzis/repos/GMM-PSO-CUDA/build",
-  "command": "/usr/bin/nvcc -forward-unknown-to-host-compiler -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE --options-file CMakeFiles/libGaussianMixture.dir/includes_CUDA.rsp -g -std=c++11 \"--generate-code=arch=compute_75,code=[compute_75,sm_75]\"   -Wno-deprecated -x cu -c /home/erzis/repos/GMM-PSO-CUDA/src/CUDA_decomposition.cu -o CMakeFiles/libGaussianMixture.dir/src/CUDA_decomposition.cu.o",
+  "command": "/usr/bin/nvcc -forward-unknown-to-host-compiler -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE --options-file CMakeFiles/libGaussianMixture.dir/includes_CUDA.rsp -g -G -g -std=c++11 \"--generate-code=arch=compute_75,code=[compute_75,sm_75]\"   -Wno-deprecated -x cu -c /home/erzis/repos/GMM-PSO-CUDA/src/CUDA_decomposition.cu -o CMakeFiles/libGaussianMixture.dir/src/CUDA_decomposition.cu.o",
   "file": "/home/erzis/repos/GMM-PSO-CUDA/src/CUDA_decomposition.cu",
   "output": "CMakeFiles/libGaussianMixture.dir/src/CUDA_decomposition.cu.o"
 },
 {
   "directory": "/home/erzis/repos/GMM-PSO-CUDA/build",
-  "command": "/usr/bin/nvcc -forward-unknown-to-host-compiler -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE --options-file CMakeFiles/libGaussianMixture.dir/includes_CUDA.rsp -g -std=c++11 \"--generate-code=arch=compute_75,code=[compute_75,sm_75]\"   -Wno-deprecated -x cu -c /home/erzis/repos/GMM-PSO-CUDA/src/CUDA_kernels.cu -o CMakeFiles/libGaussianMixture.dir/src/CUDA_kernels.cu.o",
+  "command": "/usr/bin/nvcc -forward-unknown-to-host-compiler -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT -DEIGEN_DONT_VECTORIZE --options-file CMakeFiles/libGaussianMixture.dir/includes_CUDA.rsp -g -G -g -std=c++11 \"--generate-code=arch=compute_75,code=[compute_75,sm_75]\"   -Wno-deprecated -x cu -c /home/erzis/repos/GMM-PSO-CUDA/src/CUDA_kernels.cu -o CMakeFiles/libGaussianMixture.dir/src/CUDA_kernels.cu.o",
   "file": "/home/erzis/repos/GMM-PSO-CUDA/src/CUDA_kernels.cu",
   "output": "CMakeFiles/libGaussianMixture.dir/src/CUDA_kernels.cu.o"
 },

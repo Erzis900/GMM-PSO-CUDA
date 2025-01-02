@@ -1,2 +1,2 @@
-average_fitness=[0.1491,0.6220,0.1134,];
+average_fitness=[10784347258880.0000,117779839582208.0000,9525409792.0000,];
 plot(average_fitness);

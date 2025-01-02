@@ -101,6 +101,16 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
         }
     }
 
+    size_t coefSize = 0;
+    for (auto &coef : allCoefs)
+    {
+        coefSize += coef.rows() * coef.cols() * sizeof(double);
+        flattenedCoefs.insert(flattenedCoefs.end(), coef.data(), coef.data() + coef.rows() * coef.cols());
+    }
+
+    cudaMalloc(&d_polyCoef, coefSize);
+    cudaMemcpy(d_polyCoef, flattenedCoefs.data(), coefSize, cudaMemcpyHostToDevice);
+
     cudaMemcpy(d_points, flattenedPoints.data(), inputSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_expectedOutput, output.data(), outputSize, cudaMemcpyHostToDevice);
 
@@ -610,9 +620,9 @@ void GaussianMixture::train()
 
     while (currentEpoch < config.maxIterations)
     {
-        centroids.clear();
-        widths.clear();
         allCoefs.clear();
+        // centroids.clear();
+        // widths.clear();
 
         for (int i = 0; i < (int)population.getPopulationSize(); i++)
         { // move individuals    
@@ -637,8 +647,20 @@ void GaussianMixture::train()
                 return;
             }
         }
+        
+        flattenedCoefs.clear();
 
-        runUpdateKernel(d_centroids, d_widths,state, config.inputsNo, config.trainSize, population.getPopulationSize(), d_gaussianBoundaries, config.gaussiansNo, bestIndividual, d_centroidChanges, d_widthChanges, d_bestPositionCentroids, d_bestPositionWidths, d_inputDomains);
+        size_t coefSize = 0;
+        for (auto &coef : allCoefs)
+        {
+            coefSize += coef.rows() * coef.cols() * sizeof(double);
+            flattenedCoefs.insert(flattenedCoefs.end(), coef.data(), coef.data() + coef.rows() * coef.cols());
+        }
+
+        // cudaMalloc(&d_polyCoef, coefSize);
+        cudaMemcpy(d_polyCoef, flattenedCoefs.data(), coefSize, cudaMemcpyHostToDevice);
+
+        runUpdateKernel(d_centroids, d_widths, state, config.inputsNo, config.trainSize, population.getPopulationSize(), d_gaussianBoundaries, config.gaussiansNo, bestIndividual, d_centroidChanges, d_widthChanges, d_bestPositionCentroids, d_bestPositionWidths, d_inputDomains);
 
         fitnessResults.clear();
         calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, allCoefs, fitnessResults.data(), centroids, widths, population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);

@@ -6,14 +6,14 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Build options have to be before PROJECT(...)
-SET(CMAKE_CONFIGURATION_TYPES "Release" CACHE PATH "Configuration types")
-SET(CMAKE_BUILD_TYPE "Release" CACHE PATH "Current build configuration")
+SET(CMAKE_CONFIGURATION_TYPES "Debug" CACHE PATH "Configuration types")
+SET(CMAKE_BUILD_TYPE "Debug" CACHE PATH "Current build configuration")
 
 # GAUSSIANMIXTURE Project configuration
 PROJECT(GAUSSIANMIXTURE LANGUAGES CXX CUDA)
 SET(CMAKE_CXX_FLAGS "-std=c++11 -pthread")
-#set(CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} "-g -G")
-#set(CUDA_NVCC_FLAGS "-g -G")
+set(CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} "-g -G")
+set(CUDA_NVCC_FLAGS "-g -G")
 
 # Folders
 SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
