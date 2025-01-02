@@ -19,6 +19,16 @@
 
 #define CPU
 
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+    if (code != cudaSuccess)
+    {
+        fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
+
 /// A single instance of Gaussian Mixture
 GaussianMixture::Ptr gaussianMixture;
 
@@ -40,6 +50,8 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     initializeMatrices(); // initialize matrices
 
     cudaMalloc(&state, sizeof(curandState) * population.getPopulationSize());
+
+    WInitRNG(state, population.getPopulationSize());
 
     loadVectors();
 
@@ -82,13 +94,14 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     outputSize = output.rows() * output.cols() * sizeof(double);
     fitnessResultsSize = features.rows() * sizeof(double);
 
-    cudaMalloc(&d_points, inputSize);
+    gpuErrchk(cudaMalloc(&d_points, inputSize));
     cudaMalloc(&d_expectedOutput, outputSize);
     cudaMalloc(&d_fitnessResults, fitnessResultsSize);
 
     centroidsSize = centroids.size() * sizeof(double);
     widthsSize = widths.size() * sizeof(double);
 
+    std::cout << "centroids.size() " << centroids.size() << "\n";
     cudaMalloc(&d_centroids, centroidsSize);
     cudaMalloc(&d_widths, widthsSize);
 
@@ -101,6 +114,10 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
         }
     }
 
+    for (const auto& p : flattenedPoints) {
+        std::cout << "point: " << p << "\n";
+    }
+
     size_t coefSize = 0;
     for (auto &coef : allCoefs)
     {
@@ -111,7 +128,11 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     cudaMalloc(&d_polyCoef, coefSize);
     cudaMemcpy(d_polyCoef, flattenedCoefs.data(), coefSize, cudaMemcpyHostToDevice);
 
-    cudaMemcpy(d_points, flattenedPoints.data(), inputSize, cudaMemcpyHostToDevice);
+    gpuErrchk(cudaMemcpy(d_points, flattenedPoints.data(), inputSize, cudaMemcpyHostToDevice));
+    runTestKernel(d_points, d_centroids);
+
+    cudaDeviceSynchronize();
+
     cudaMemcpy(d_expectedOutput, output.data(), outputSize, cudaMemcpyHostToDevice);
 
     cudaMemcpy(d_centroids, centroids.data(), centroidsSize, cudaMemcpyHostToDevice);
@@ -123,6 +144,8 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     cudaMemcpy(d_bestPositionWidths, bestPositionWidths.data(), bestPositionWidthsSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_gaussianBoundaries, gaussianBoundaries.data(), gaussianBoundariesSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_inputDomains, inputDomains.data(), inputDomainsSize, cudaMemcpyHostToDevice);
+    runTestKernel(d_points, d_centroids);
+    std::cout << "d_points pointer init " << d_points << "\n";
 }
 
 /// destructor
@@ -578,6 +601,7 @@ void GaussianMixture::loadVectors()
 /// search for the best Approximation function - PSO method
 void GaussianMixture::train()
 {
+    runTestKernel(d_points, d_centroids);
     #ifdef CPU
         for (int i = 0; i < (int)population.getPopulationSize(); i++)
         { // fitness evaluation for every individual
@@ -587,11 +611,15 @@ void GaussianMixture::train()
             std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
         }
     #endif
+    runTestKernel(d_points, d_centroids);
 
-    WInitRNG(state, population.getPopulationSize());
+    // WInitRNG(state, population.getPopulationSize());
+    runTestKernel(d_points, d_centroids);
 
     //double* fitnessResults = new double[features.rows()];
     std::vector<double> fitnessResults(features.rows(), 0.0);
+    std::cout << "d_points pointer " << d_points << "\n";
+    runTestKernel(d_points, d_centroids);
     calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, allCoefs, fitnessResults.data(), centroids, widths, population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
 
     for (int i = 0; i < population.getPopulationSize(); i++)

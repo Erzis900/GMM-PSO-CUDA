@@ -1,2 +1,2 @@
-bestFitness=[0.0000,0.0000,0.0000,];
+bestFitness=[0.3333,0.3333,0.3333,];
 plot(bestFitness);

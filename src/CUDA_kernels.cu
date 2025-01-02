@@ -15,28 +15,65 @@ __host__ void calculateFitnessCUDA(double* d_centroids, double* d_widths, double
     cudaMemcpy(fitnessResults, d_fitnessResults, noPoints * sizeof(double), cudaMemcpyDeviceToHost);
 }
 
+__global__ void testKernel(double *points, double* centroids)
+{
+    printf("x[0] = %f\n", points[0]);
+    printf("x[1] = %f\n", points[1]);
+    printf("x[2] = %f\n", points[2]);
+    printf("x[3] = %f\n", points[3]);
+    printf("x[4] = %f\n", points[4]);
+    printf("x[5] = %f\n", points[5]);
+
+    printf("c[0] = %f\n", centroids[0]);
+    printf("c[1] = %f\n", centroids[1]);
+    printf("c[2] = %f\n", centroids[2]);
+    printf("c[3] = %f\n", centroids[3]);
+    printf("c[4] = %f\n", centroids[4]);
+    printf("c[5] = %f\n", centroids[5]);
+}
+
 __global__ void evaluateKernel(int noPoints, double *points, double *expectedOutput, double *polyCoef, int noCoef, double *fitnessResults, double *centroids, double *widths, int noParticles, int dim)
 {
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
 
+    if (idx==0){
+        printf("ex[0] = %f\n", points[0]);
+        printf("ex[1] = %f\n", points[1]);
+        printf("ex[2] = %f\n", points[2]);
+        printf("ex[3] = %f\n", points[3]);
+        printf("ex[4] = %f\n", points[4]);
+        printf("ex[5] = %f\n", points[5]);
+
+        printf("c[0] = %f\n", centroids[0]);
+        printf("c[1] = %f\n", centroids[1]);
+        printf("c[2] = %f\n", centroids[2]);
+        printf("c[3] = %f\n", centroids[3]);
+        printf("c[4] = %f\n", centroids[4]);
+        printf("c[5] = %f\n", centroids[5]);
+    }
+
     // printf("noParticles %d, gaussiansNo %d, dimNo %d\n", noParticles, noCoef, dim);
     for (int particleNo = idx; particleNo < noParticles; particleNo += stride)
     {
+        printf("particle no: %d\n", particleNo);
         double sum = 0.0;
         for (int pointNo = 0; pointNo < noPoints; pointNo++)
         {
+            // printf("point no: %d\n", pointNo);
             // printf("eval centroid[0]: %f\n", centroids[0]);
             double expectedValue = expectedOutput[pointNo];
 
             double computedValue = 0.0;
             for (int coefNo = 0; coefNo < noCoef; coefNo++) // gaussy
             {
+                // printf("coefNo no: %d\n", coefNo);
                 double c = polyCoef[particleNo * noCoef + coefNo];
 
                 double resultDim = 0;
                 for (int dimNo = 0; dimNo < dim; dimNo++)
                 {
+                    // printf("dim no: %d\n", dimNo);
                     // printf("d_centroids: %f\n", centroids[particleNo * noCoef * dim + coefNo * dim + dimNo]);
                     double centroid = centroids[particleNo * noCoef * dim + coefNo * dim + dimNo];
                     double width = widths[particleNo * noCoef * dim + coefNo * dim + dimNo];
@@ -49,12 +86,18 @@ __global__ void evaluateKernel(int noPoints, double *points, double *expectedOut
                     double gaussianValue = (-width * pow((x - centroid), 2.0));
 
                     resultDim += gaussianValue;
+                    if(isnan(resultDim)){
+                        printf("isnan resultDim!! particleNo %d, pointNo %d, x: %f\n", particleNo, pointNo, x);
+                    }
                 }
 
                 resultDim /= double(dim);
 
                 computedValue += c * exp(resultDim);
             }
+            // if(isnan(sum)){
+            //     printf("isnan!!!!!! particleNo %d, pointNo %d\n", particleNo, pointNo/*, coefNo, dimNo, */);
+            // }
             sum += fabs(expectedValue - computedValue);
         }
 
@@ -71,6 +114,16 @@ __host__ void runUpdateKernel(double* d_centroids, double* d_widths, curandState
     int numBlocks = 1;
 
     updateKernel<<<numBlocks, blockSize>>>(d_centroids, d_widths, state, dim, noPoints, noParticles, gaussianBoundaries, gaussiansNo, bestIndex, centroidChanges, widthChanges, bestPositionCentroids, bestPositionWidths, inputDomains);
+
+    cudaDeviceSynchronize();
+}
+
+__host__ void runTestKernel(double* points, double* centroids)
+{
+    int blockSize = 1;
+    int numBlocks = 1;
+
+    testKernel<<<numBlocks, blockSize>>>(points, centroids);
 
     cudaDeviceSynchronize();
 }
