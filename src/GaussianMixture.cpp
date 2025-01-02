@@ -80,7 +80,7 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     widthChangesSize = widthChanges.size() * sizeof(double);
     bestPositionCentroidsSize = bestPositionCentroids.size() * sizeof(double);
     bestPositionWidthsSize = bestPositionCentroids.size() * sizeof(double);
-    gaussianBoundariesSize = gaussianBoundaries.size() * sizeof(double);
+    gaussianBoundariesSize = gaussianBoundariesV.size() * sizeof(double);
     inputDomainsSize = inputDomains.size() * sizeof(double);
 
     cudaMalloc(&d_centroidChanges, centroidChangesSize);
@@ -101,7 +101,8 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     centroidsSize = centroids.size() * sizeof(double);
     widthsSize = widths.size() * sizeof(double);
 
-    std::cout << "centroids.size() " << centroids.size() << "\n";
+    std::cout << "Centroids size: " << centroids.size() << std::endl;
+
     cudaMalloc(&d_centroids, centroidsSize);
     cudaMalloc(&d_widths, widthsSize);
 
@@ -112,10 +113,6 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
         {
             flattenedPoints.push_back(features(i, j));
         }
-    }
-
-    for (const auto& p : flattenedPoints) {
-        std::cout << "point: " << p << "\n";
     }
 
     size_t coefSize = 0;
@@ -129,7 +126,6 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     cudaMemcpy(d_polyCoef, flattenedCoefs.data(), coefSize, cudaMemcpyHostToDevice);
 
     gpuErrchk(cudaMemcpy(d_points, flattenedPoints.data(), inputSize, cudaMemcpyHostToDevice));
-    runTestKernel(d_points, d_centroids);
 
     cudaDeviceSynchronize();
 
@@ -142,67 +138,14 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     cudaMemcpy(d_widthChanges, widthChanges.data(), widthChangesSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_bestPositionCentroids, bestPositionCentroids.data(), bestPositionCentroidsSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_bestPositionWidths, bestPositionWidths.data(), bestPositionWidthsSize, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_gaussianBoundaries, gaussianBoundaries.data(), gaussianBoundariesSize, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_gaussianBoundaries, gaussianBoundariesV.data(), gaussianBoundariesSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_inputDomains, inputDomains.data(), inputDomainsSize, cudaMemcpyHostToDevice);
-    runTestKernel(d_points, d_centroids);
-    std::cout << "d_points pointer init " << d_points << "\n";
+    // runTestKernel(d_points, d_centroids);
 }
 
 /// destructor
 GaussianMixture::~GaussianMixture()
 {
-}
-
-void GaussianMixture::trainCPU()
-{
-    for (int i = 0; i < (int)population.getPopulationSize(); i++)
-    { // fitness evaluation for every individual
-        tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), config.outputsNo);
-        double fit = computeIndividualFitness(features, output, tempCoef, i);
-        cout.precision(std::numeric_limits<double>::max_digits10);
-        std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
-    }
-    population.computeAverageFitness();
-    std::cout << "[CPU] epoch: " << currentEpoch << ", best fitness: " << bestFitness << "\n";
-    // save initial values
-    bestFitnessRecorder.save(bestFitness);
-    averageFitnessRecorder.save(population.getAverageFitness());
-
-    while (currentEpoch < config.maxIterations)
-    {
-        for (int i = 0; i < (int)population.getPopulationSize(); i++)
-        { // move individuals
-            if (i != bestIndividual)
-            {
-                population.moveIndividual(i, bestPolynomial);
-            }
-            tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), 1);
-            double fit = computeIndividualFitness(features, output, tempCoef, i); // and fitness value
-            std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
-        }
-        currentEpoch++;
-        // save
-        // if ((currentEpoch%(config.maxIterations/10))==0) {
-        std::cout << "[CPU] epoch: " << currentEpoch << ", best fitness: " << bestFitness << "\n";
-
-        //}
-        population.computeAverageFitness();
-        bestFitnessRecorder.save(bestFitness);
-        averageFitnessRecorder.save(population.getAverageFitness());
-    }
-    // save initial values
-    bestFitnessRecorder.save2file("bestFitness.txt", "bestFitness");
-    averageFitnessRecorder.save2file("average_fitness.txt", "average_fitness");
-
-    double maxerr, averr;
-    computeAPE(features, output, averr, maxerr);
-    std::cout << "Error for training data: average " << averr << ", max " << maxerr << "\n";
-    computeAPE(testInput, testOutput, averr, maxerr);
-    std::cout << "Error for test data: average " << averr << ", max " << maxerr << "%f\n";
-    if (config.inputsNo < 3)
-        savePlotFile("plot_figure.m", features, output, testInput, testOutput);
-    testResults("final_results.txt", features, output);
-    testResults("final_results_test.txt", testInput, testOutput);
 }
 
 /// config class construction
@@ -601,7 +544,7 @@ void GaussianMixture::loadVectors()
 /// search for the best Approximation function - PSO method
 void GaussianMixture::train()
 {
-    runTestKernel(d_points, d_centroids);
+    // runTestKernel(d_points, d_centroids);
     #ifdef CPU
         for (int i = 0; i < (int)population.getPopulationSize(); i++)
         { // fitness evaluation for every individual
@@ -611,15 +554,9 @@ void GaussianMixture::train()
             std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
         }
     #endif
-    runTestKernel(d_points, d_centroids);
-
-    // WInitRNG(state, population.getPopulationSize());
-    runTestKernel(d_points, d_centroids);
 
     //double* fitnessResults = new double[features.rows()];
     std::vector<double> fitnessResults(features.rows(), 0.0);
-    std::cout << "d_points pointer " << d_points << "\n";
-    runTestKernel(d_points, d_centroids);
     calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, allCoefs, fitnessResults.data(), centroids, widths, population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
 
     for (int i = 0; i < population.getPopulationSize(); i++)

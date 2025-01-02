@@ -57,7 +57,9 @@ public:
     /// Get average fitness
     inline double getAverageFitness() const { return averageFitness; }
     /// Move individual
-    inline void moveIndividual(unsigned int individualNo, Individual &bestIndividual) { population[individualNo].moveIndividual(bestIndividual); }
+    inline void moveIndividual(unsigned int individualNo, Individual &bestIndividual) { 
+        // std::cout << "particle: " << individualNo << std::endl;
+        population[individualNo].moveIndividual(bestIndividual); }
 
 private:
     /// population of individuals

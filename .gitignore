@@ -37,3 +37,4 @@
 /build/GAUSSIANMIXTURE
 build/CMakeCache.txt
 /.vscode
+build/bin/GaussianMixture
