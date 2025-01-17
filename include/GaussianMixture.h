@@ -130,6 +130,7 @@ private:
     size_t widthsSize;
 
     curandState* state;
+    std::vector<double> fitnessCPU;
 
     /// read train/test/verification data
     void readInOutData(const std::string &filename, Eigen::MatrixXd &_input, Eigen::MatrixXd &_output, int &vecLength);
@@ -166,6 +167,8 @@ private:
     /// denormalize output
     double denormalizeValue(double value, const std::pair<double, double> &minMax);
     void loadVectors();
+
+    bool isFitnessSame(double fitnessCPU, double fitnessGPU);
 
     /// population of individuals
     Population population;

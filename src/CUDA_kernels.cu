@@ -9,10 +9,10 @@ __host__ void WInitRNG(curandState *state, int noPoints)
     InitRNG<<<numBlocks, blockSize>>>(state, clock());
 }
 
-__host__ void calculateFitnessCUDA(double* d_centroids, double* d_widths, double* d_polyCoef, double *d_points, double *d_expectedOutput, double *d_fitnessResults, std::vector<Eigen::MatrixXd> &allCoefs, double *fitnessResults, std::vector<double> centroids, std::vector<double> &widths, int noParticles, int gaussiansNo, int dim, int noPoints)
+__host__ void calculateFitnessCUDA(double* d_centroids, double* d_widths, double* d_polyCoef, double *d_points, double *d_expectedOutput, double *d_fitnessResults, double *fitnessResults, int noParticles, int gaussiansNo, int dim, int noPoints)
 {
     runKernel(noPoints, d_points, d_expectedOutput, d_polyCoef, gaussiansNo, d_fitnessResults, d_centroids, d_widths, noParticles, dim);
-    cudaMemcpy(fitnessResults, d_fitnessResults, noPoints * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(fitnessResults, d_fitnessResults, noParticles * sizeof(double), cudaMemcpyDeviceToHost);
 }
 
 __global__ void testKernel(double *points, double* centroids)
@@ -200,19 +200,20 @@ __global__ void updateKernel(double* d_centroids, double* d_widths, curandState 
                     centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * (d_centroids[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
                     + c2 * (bestPositionCentroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
+                    //  printf("%d Centroid change CUDA: %f\n", gaussNo, centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
                     // if(idx == 0)
                         // printf("%d Centroid change CUDA: %f\n", particleNo, centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
                         // printf("%d inputDomains CUDA %f %f\n", particleNo, inputDomains[4 * particleNo + dim * dimNo], inputDomains[4 * particleNo + dim * dimNo + 1]);
 
-                    if(abs(centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) > ((inputDomains[4 * particleNo + dim * dimNo + 1] - inputDomains[4 * particleNo + dim * dimNo]) * maxChange))
+                    if(abs(centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) > ((inputDomains[dim * dimNo + 1] - inputDomains[dim * dimNo]) * maxChange))
                     {
                         if(centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] < 0)
                         {
-                            centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = -(inputDomains[4 * particleNo + dim * dimNo + 1] - inputDomains[4 * particleNo + dim * dimNo]) * maxChange;
+                            centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = -(inputDomains[dim * dimNo + 1] - inputDomains[dim * dimNo]) * maxChange;
                         }
                         else
                         {
-                            centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = (inputDomains[4 * particleNo + dim * dimNo + 1] - inputDomains[4 * particleNo + dim * dimNo]) * maxChange;
+                            centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] = (inputDomains[dim * dimNo + 1] - inputDomains[dim * dimNo]) * maxChange;
                         }
                     }
 

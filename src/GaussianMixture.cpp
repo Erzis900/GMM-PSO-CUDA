@@ -55,27 +55,6 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
 
     loadVectors();
 
-    // for (int i = 0; i < population.getPopulationSize(); i++)
-    // {
-    //     for (int k = 0; k < config.inputsNo; k++)
-    //     {   
-    //         gaussianBoundariesV.push_back(population.getIndividual(i).getGaussianBoundaries().at(k).first);
-    //         gaussianBoundariesV.push_back(population.getIndividual(i).getGaussianBoundaries().at(k).second);  
-
-    //         inputDomains.push_back(population.getIndividual(i).getInputDomain(k).first);
-    //         inputDomains.push_back(population.getIndividual(i).getInputDomain(k).second);
-
-    //         for (int j = 0; j < config.gaussiansNo; j++)
-    //         {
-    //             centroidChanges.push_back(population.getIndividual(i).getChromosome(j).getCentroidChange(k));
-    //             widthChanges.push_back(population.getIndividual(i).getChromosome(j).getWidthChange(k));
-
-    //             bestPositionCentroids.push_back(population.getIndividual(i).getBestPosition(j).getCentroid(k));
-    //             bestPositionWidths.push_back(population.getIndividual(i).getBestPosition(j).getWidth(k));
-    //         }
-    //     }
-    // }
-
     centroidChangesSize = centroidChanges.size() * sizeof(double);
     widthChangesSize = widthChanges.size() * sizeof(double);
     bestPositionCentroidsSize = bestPositionCentroids.size() * sizeof(double);
@@ -92,16 +71,17 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
 
     inputSize = features.rows() * features.cols() * sizeof(double);
     outputSize = output.rows() * output.cols() * sizeof(double);
-    fitnessResultsSize = features.rows() * sizeof(double);
+    fitnessResultsSize = population.getPopulationSize() * sizeof(double);
 
     gpuErrchk(cudaMalloc(&d_points, inputSize));
     cudaMalloc(&d_expectedOutput, outputSize);
     cudaMalloc(&d_fitnessResults, fitnessResultsSize);
 
     centroidsSize = centroids.size() * sizeof(double);
+    // std::cout << centroids.size() << std::endl;
     widthsSize = widths.size() * sizeof(double);
 
-    std::cout << "Centroids size: " << centroids.size() << std::endl;
+    // std::cout << "Centroids size: " << centroids.size() << std::endl;
 
     cudaMalloc(&d_centroids, centroidsSize);
     cudaMalloc(&d_widths, widthsSize);
@@ -507,8 +487,17 @@ double GaussianMixture::computeIndividualFitness(const Eigen::MatrixXd &_input, 
 
 void GaussianMixture::loadVectors()
 {
-    for (int i = 0; i < (int)population.getPopulationSize(); i++)
+    for (int k = 0; k < config.inputsNo; k++)
     {
+        inputDomains.push_back(population.getIndividual(0).getInputDomain(k).first);
+        inputDomains.push_back(population.getIndividual(0).getInputDomain(k).second);
+    }
+
+    for (int i = 0; i < population.getPopulationSize(); i++)
+    {
+        // std::cout << population.getIndividual(i).getGaussianBoundaries().size() << std::endl;
+        // 2
+        
         tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), config.outputsNo);
         if(computeCoef(i, tempCoef))
         {
@@ -519,9 +508,6 @@ void GaussianMixture::loadVectors()
         {
             gaussianBoundariesV.push_back(population.getIndividual(i).getGaussianBoundaries().at(k).first);
             gaussianBoundariesV.push_back(population.getIndividual(i).getGaussianBoundaries().at(k).second);  
-
-            inputDomains.push_back(population.getIndividual(i).getInputDomain(k).first);
-            inputDomains.push_back(population.getIndividual(i).getInputDomain(k).second);
         }
 
         for (int j = 0; j < config.gaussiansNo; j++)
@@ -541,23 +527,32 @@ void GaussianMixture::loadVectors()
     }
 }
 
+bool GaussianMixture::isFitnessSame(double fitnessCPU, double fitnessGPU)
+{
+    double deviation = 0.0001;
+    return (fitnessGPU >= (fitnessCPU - deviation)) && (fitnessGPU <= (fitnessCPU + deviation));
+}
+
 /// search for the best Approximation function - PSO method
 void GaussianMixture::train()
 {
     // runTestKernel(d_points, d_centroids);
     #ifdef CPU
+        fitnessCPU.clear();
         for (int i = 0; i < (int)population.getPopulationSize(); i++)
         { // fitness evaluation for every individual
             tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), config.outputsNo);
+
             double fit = computeIndividualFitness(features, output, tempCoef, i);
+            fitnessCPU.push_back(fit);
+
             cout.precision(std::numeric_limits<double>::max_digits10);
             std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
         }
     #endif
 
-    //double* fitnessResults = new double[features.rows()];
-    std::vector<double> fitnessResults(features.rows(), 0.0);
-    calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, allCoefs, fitnessResults.data(), centroids, widths, population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
+    std::vector<double> fitnessResults(population.getPopulationSize(), 0.0);
+    calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
 
     for (int i = 0; i < population.getPopulationSize(); i++)
     {
@@ -572,11 +567,25 @@ void GaussianMixture::train()
         }
 
         cout.precision(std::numeric_limits<double>::max_digits10);
-        std::cout << "[CUDA] Individual " << i + 1 << " fitness: " << fitnessResults[i] << "\n";
+        std::cout << "[CUDA] Individual " << i + 1 << " fitness: " << fitnessResults[i] << " ";
+
+        #ifdef CPU
+            std::cout << " ";
+            if(isFitnessSame(fitnessCPU[i], fitnessResults[i]))
+            {
+                std::cout << "SAME\n";
+            }
+            else
+            {
+                std::cout << "WRONG\n";
+            }
+        #else
+            std::cout << std::endl;
+        #endif
     }
 
     population.computeAverageFitness();
-    std::cout << "[CUDA] epoch: " << currentEpoch << ", best fitness: " << bestFitness << "\n\n";
+    std::cout << "[CUDA] epoch: " << currentEpoch << ", best fitness: " << bestFitness << ", best ind: " << bestIndividual << "\n\n";
     // save initial values
     bestFitnessRecorder.save(bestFitness);
     averageFitnessRecorder.save(population.getAverageFitness());
@@ -586,6 +595,9 @@ void GaussianMixture::train()
     while (currentEpoch < config.maxIterations)
     {
         allCoefs.clear();
+        #ifdef CPU
+            fitnessCPU.clear();
+        #endif
         // centroids.clear();
         // widths.clear();
 
@@ -597,7 +609,11 @@ void GaussianMixture::train()
                     population.moveIndividual(i, bestPolynomial);
                 }
 
+                tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), config.outputsNo);
+
                 double fit = computeIndividualFitness(features, output, tempCoef, i);
+                fitnessCPU.push_back(fit);
+
                 std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
             #endif
 
@@ -628,7 +644,7 @@ void GaussianMixture::train()
         runUpdateKernel(d_centroids, d_widths, state, config.inputsNo, config.trainSize, population.getPopulationSize(), d_gaussianBoundaries, config.gaussiansNo, bestIndividual, d_centroidChanges, d_widthChanges, d_bestPositionCentroids, d_bestPositionWidths, d_inputDomains);
 
         fitnessResults.clear();
-        calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, allCoefs, fitnessResults.data(), centroids, widths, population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
+        calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
 
         for (int i = 0; i < population.getPopulationSize(); i++)
         {
@@ -642,7 +658,21 @@ void GaussianMixture::train()
                 bestPolynomial.setGaussianBoundaries(population.getGaussianBoundaries(i));
             }
 
-            std::cout << "[CUDA] Individual " << i + 1 << " fitness: " << fitnessResults[i] << "\n";
+            std::cout << "[CUDA] Individual " << i + 1 << " fitness: " << fitnessResults[i];
+
+            #ifdef CPU
+                std::cout << " ";
+                if(isFitnessSame(fitnessCPU[i], fitnessResults[i]))
+                {
+                    std::cout << "SAME\n";
+                }
+                else
+                {
+                    std::cout << "WRONG\n";
+                }
+            #else
+                std::cout << std::endl;
+            #endif
         }
 
             //tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), 1);
@@ -655,7 +685,7 @@ void GaussianMixture::train()
 
         //}
         population.computeAverageFitness();
-        std::cout << "[CUDA] epoch: " << currentEpoch << ", best fitness: " << bestFitness << "\n";
+        std::cout << "[CUDA] epoch: " << currentEpoch << ", best fitness: " << bestFitness << ", best ind: " << bestIndividual + 1 << "\n";
         bestFitnessRecorder.save(bestFitness);
         averageFitnessRecorder.save(population.getAverageFitness());
 
