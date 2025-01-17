@@ -35,7 +35,7 @@ public:
     /// randomly selects individual
     unsigned int selectIndividual();
     /// get individual from population
-    Individual getIndividual(unsigned int individualNo) const;
+    Individual& getIndividual(unsigned int individualNo);
     /// compute average fitness
     double computeAverageFitness();
     /// compute individual fitness

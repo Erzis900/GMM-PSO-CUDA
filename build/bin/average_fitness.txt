@@ -1,2 +1,0 @@
-average_fitness=[0.3333,0.3062,0.0000,];
-plot(average_fitness);

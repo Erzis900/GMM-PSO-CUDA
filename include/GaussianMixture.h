@@ -113,6 +113,8 @@ private:
     double *d_widths;
     double *d_polyCoef;
 
+    double *d_pBest;
+
     std::vector<double> flattenedCoefs;
 
     size_t centroidChangesSize;

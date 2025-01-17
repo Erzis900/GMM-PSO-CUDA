@@ -37,5 +37,6 @@
 /build/GAUSSIANMIXTURE
 build/CMakeCache.txt
 /.vscode
+build/bin/average_fitness.txt
 build/bin/GaussianMixture
-/build
+build/bin/cmake_install.cmake

@@ -514,11 +514,11 @@ void GaussianMixture::loadVectors()
         {   
             for (int k = 0; k < config.inputsNo; k++)
             {
-                centroids.push_back(population.getIndividual(i).getChromosome(j).getCentroid(k));
-                widths.push_back(population.getIndividual(i).getChromosome(j).getWidth(k));
+                centroids.push_back(population.getIndividual(i).getGauss(j).getCentroid(k));
+                widths.push_back(population.getIndividual(i).getGauss(j).getWidth(k));
 
-                centroidChanges.push_back(population.getIndividual(i).getChromosome(j).getCentroidChange(k));
-                widthChanges.push_back(population.getIndividual(i).getChromosome(j).getWidthChange(k));
+                centroidChanges.push_back(population.getIndividual(i).getGauss(j).getCentroidChange(k));
+                widthChanges.push_back(population.getIndividual(i).getGauss(j).getWidthChange(k));
 
                 bestPositionCentroids.push_back(population.getIndividual(i).getBestPosition(j).getCentroid(k));
                 bestPositionWidths.push_back(population.getIndividual(i).getBestPosition(j).getWidth(k));
@@ -552,10 +552,11 @@ void GaussianMixture::train()
     #endif
 
     std::vector<double> fitnessResults(population.getPopulationSize(), 0.0);
-    calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
+    calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize, bestFitness, d_bestPositionCentroids, d_bestPositionWidths);
 
     for (int i = 0; i < population.getPopulationSize(); i++)
     {
+        // global
         if (fitnessResults[i] < bestFitness)
         {
             bestFitness = fitnessResults[i];
@@ -564,6 +565,14 @@ void GaussianMixture::train()
             polyCoef = allCoefs.at(i);
             bestPolynomial = population.getIndividual(i);
             bestPolynomial.setGaussianBoundaries(population.getGaussianBoundaries(i));
+        }
+        // std::cout << "bestFitness: " << bestFitness << std::endl;
+
+        // local
+        if (fitnessResults[i] < population.getIndividual(i).getBestFitness())
+        {
+            population.getIndividual(i).changeBestPosition();
+            population.getIndividual(i).setBestFitness(fitnessResults[i]);
         }
 
         cout.precision(std::numeric_limits<double>::max_digits10);
@@ -585,7 +594,7 @@ void GaussianMixture::train()
     }
 
     population.computeAverageFitness();
-    std::cout << "[CUDA] epoch: " << currentEpoch << ", best fitness: " << bestFitness << ", best ind: " << bestIndividual << "\n\n";
+    std::cout << "[CUDA] epoch: " << currentEpoch << ", best fitness: " << bestFitness << ", best ind: " << bestIndividual + 1 << "\n\n";
     // save initial values
     bestFitnessRecorder.save(bestFitness);
     averageFitnessRecorder.save(population.getAverageFitness());
@@ -595,6 +604,9 @@ void GaussianMixture::train()
     while (currentEpoch < config.maxIterations)
     {
         allCoefs.clear();
+        bestPositionCentroids.clear();
+        bestPositionWidths.clear();
+
         #ifdef CPU
             fitnessCPU.clear();
         #endif
@@ -616,6 +628,15 @@ void GaussianMixture::train()
 
                 std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
             #endif
+
+            for (int j = 0; j < config.gaussiansNo; j++)
+            {   
+                for (int k = 0; k < config.inputsNo; k++)
+                {
+                    bestPositionCentroids.push_back(population.getIndividual(i).getBestPosition(j).getCentroid(k));
+                    bestPositionWidths.push_back(population.getIndividual(i).getBestPosition(j).getWidth(k));
+                }
+            }
 
             tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), config.outputsNo);
             if(computeCoef(i, tempCoef))
@@ -641,13 +662,18 @@ void GaussianMixture::train()
         // cudaMalloc(&d_polyCoef, coefSize);
         cudaMemcpy(d_polyCoef, flattenedCoefs.data(), coefSize, cudaMemcpyHostToDevice);
 
+        cudaMemcpy(d_bestPositionCentroids, bestPositionCentroids.data(), bestPositionCentroidsSize, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_bestPositionWidths, bestPositionWidths.data(), bestPositionWidthsSize, cudaMemcpyHostToDevice);
+
         runUpdateKernel(d_centroids, d_widths, state, config.inputsNo, config.trainSize, population.getPopulationSize(), d_gaussianBoundaries, config.gaussiansNo, bestIndividual, d_centroidChanges, d_widthChanges, d_bestPositionCentroids, d_bestPositionWidths, d_inputDomains);
 
         fitnessResults.clear();
-        calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize);
+        calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize, bestFitness, d_bestPositionCentroids, d_bestPositionWidths);
 
         for (int i = 0; i < population.getPopulationSize(); i++)
         {
+            // std::cout << fitnessResults[i] << std::endl;
+            // std::cout << "bestFitness: " << bestFitness << std::endl;
             if (fitnessResults[i] < bestFitness)
             {
                 bestFitness = fitnessResults[i];
@@ -656,6 +682,16 @@ void GaussianMixture::train()
                 polyCoef = allCoefs.at(i);
                 bestPolynomial = population.getIndividual(i);
                 bestPolynomial.setGaussianBoundaries(population.getGaussianBoundaries(i));
+            }
+
+            // local
+            // std::cout << "Before: " << population.getIndividual(i).getBestFitness() << std::endl;
+            if (fitnessResults[i] < population.getIndividual(i).getBestFitness())
+            {
+                // std::cout << "fitness: " << fitnessResults[i] << std::endl;
+                // std::cout << population.getIndividual(i).getBestFitness() << std::endl;
+                population.getIndividual(i).setBestFitness(fitnessResults[i]);
+                population.getIndividual(i).changeBestPosition();
             }
 
             std::cout << "[CUDA] Individual " << i + 1 << " fitness: " << fitnessResults[i];

@@ -77,7 +77,7 @@ void Population::createPopulation()
 }
 
 /// get individual from population
-Individual Population::getIndividual(unsigned int individualNo) const
+Individual& Population::getIndividual(unsigned int individualNo)
 {
     return population[individualNo];
 }

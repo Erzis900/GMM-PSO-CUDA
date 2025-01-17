@@ -16,8 +16,8 @@
       # 1 - octave/matlab like type
       # 2 - c/c++ like type
     -->
-    <parameters inputsNo="2" outputsNo="1" populationSize="3" gaussiansNo="2" maxIterations="2" trainSize="3" testSize="3" outputType="2" normalizeOutput="true"></parameters>
-    <!-- <parameters inputsNo="2" outputsNo="1" populationSize="20" gaussiansNo="210" maxIterations="10" trainSize="210" testSize="210" outputType="2" normalizeOutput="true"></parameters> -->
+    <!-- <parameters inputsNo="2" outputsNo="1" populationSize="5" gaussiansNo="210" maxIterations="2" trainSize="220" testSize="220" outputType="2" normalizeOutput="true"></parameters> -->
+    <parameters inputsNo="2" outputsNo="1" populationSize="15" gaussiansNo="3" maxIterations="3" trainSize="30" testSize="210" outputType="2" normalizeOutput="true"></parameters>
     
   </GaussianMixture>
   <trainingSet>trainXYZ.csv</trainingSet>
