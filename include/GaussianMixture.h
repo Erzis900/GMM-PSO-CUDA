@@ -134,6 +134,11 @@ private:
     curandState* state;
     std::vector<double> fitnessCPU;
 
+    std::vector<float> fitnessTimesCPU;
+    std::vector<float> fitnessTimesGPU;
+
+    float memcpyTime;
+
     /// read train/test/verification data
     void readInOutData(const std::string &filename, Eigen::MatrixXd &_input, Eigen::MatrixXd &_output, int &vecLength);
     /// read train/test/verification data

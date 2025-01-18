@@ -40,3 +40,5 @@ build/CMakeCache.txt
 build/bin/average_fitness.txt
 build/bin/GaussianMixture
 build/bin/cmake_install.cmake
+/build/bin/lib
+/build/bin/bin

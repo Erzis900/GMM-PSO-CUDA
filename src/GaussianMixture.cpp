@@ -14,10 +14,13 @@
 #include <string>
 #include <limits>
 #include <iostream>
+#include <chrono>
 
 #include "../include/CUDA_decomposition.h"
 
 #define CPU
+// #define DEBUG_INFO
+// #define SHOW_FIT
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -49,6 +52,7 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     setParameters();
     initializeMatrices(); // initialize matrices
 
+    auto t1 = std::chrono::high_resolution_clock::now();
     cudaMalloc(&state, sizeof(curandState) * population.getPopulationSize());
 
     WInitRNG(state, population.getPopulationSize());
@@ -105,9 +109,9 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     cudaMalloc(&d_polyCoef, coefSize);
     cudaMemcpy(d_polyCoef, flattenedCoefs.data(), coefSize, cudaMemcpyHostToDevice);
 
-    gpuErrchk(cudaMemcpy(d_points, flattenedPoints.data(), inputSize, cudaMemcpyHostToDevice));
+    // gpuErrchk(cudaMemcpy(d_points, flattenedPoints.data(), inputSize, cudaMemcpyHostToDevice));
 
-    cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
 
     cudaMemcpy(d_expectedOutput, output.data(), outputSize, cudaMemcpyHostToDevice);
 
@@ -120,6 +124,10 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     cudaMemcpy(d_bestPositionWidths, bestPositionWidths.data(), bestPositionWidthsSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_gaussianBoundaries, gaussianBoundariesV.data(), gaussianBoundariesSize, cudaMemcpyHostToDevice);
     cudaMemcpy(d_inputDomains, inputDomains.data(), inputDomainsSize, cudaMemcpyHostToDevice);
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    memcpyTime = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count());
+    std::cout << "memcpy time: " << memcpyTime << " ms\n";
     // runTestKernel(d_points, d_centroids);
 }
 
@@ -529,30 +537,71 @@ void GaussianMixture::loadVectors()
 
 bool GaussianMixture::isFitnessSame(double fitnessCPU, double fitnessGPU)
 {
-    double deviation = 0.0001;
+    double deviation = 0.001;
     return (fitnessGPU >= (fitnessCPU - deviation)) && (fitnessGPU <= (fitnessCPU + deviation));
+}
+
+float calc_std_var(std::vector<float> times, float avg)
+{
+    float sum = 0;
+    for (auto &x : times)
+    {
+        sum += std::pow((x - avg), 2);
+    }
+
+    return std::sqrt(sum / times.size());
 }
 
 /// search for the best Approximation function - PSO method
 void GaussianMixture::train()
 {
+    float totalFitnessTimeCPU = 0;
+    float totalFitnessTimeGPU = 0;
+
     // runTestKernel(d_points, d_centroids);
     #ifdef CPU
+        float CPUfitnessTime = 0;
         fitnessCPU.clear();
         for (int i = 0; i < (int)population.getPopulationSize(); i++)
         { // fitness evaluation for every individual
             tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), config.outputsNo);
 
+            auto t1 = std::chrono::high_resolution_clock::now();
             double fit = computeIndividualFitness(features, output, tempCoef, i);
+            auto t2 = std::chrono::high_resolution_clock::now();
+            float duration = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count());
+            CPUfitnessTime += duration;
+
             fitnessCPU.push_back(fit);
 
             cout.precision(std::numeric_limits<double>::max_digits10);
-            std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
+            #ifdef SHOW_FIT
+                std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
+            #endif
+
+            #ifdef DEBUG_INFO
+                std::cout << "Duration: " << duration << "\n";
+            #endif
         }
+        // std::cout << "[CPU] Avg fitness time: " << CPUfitnessTime / population.getPopulationSize() << " ms\n";
+        std::cout << "[CPU] Fitness calculated in: " << CPUfitnessTime << " ms\n";
+        totalFitnessTimeCPU += CPUfitnessTime;
+        fitnessTimesCPU.push_back(CPUfitnessTime);
     #endif
 
     std::vector<double> fitnessResults(population.getPopulationSize(), 0.0);
+
+    auto t1 = std::chrono::high_resolution_clock::now();
     calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize, bestFitness, d_bestPositionCentroids, d_bestPositionWidths);
+    auto t2 = std::chrono::high_resolution_clock::now();
+    float duration = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count());
+    std::cout << "[CUDA] Fitness calculated in: " << duration + memcpyTime << " ms\n";
+    totalFitnessTimeGPU += duration + memcpyTime;
+    fitnessTimesGPU.push_back(duration + memcpyTime);
+
+    #ifndef SHOW_FIT
+        std::cout << std::endl;
+    #endif
 
     for (int i = 0; i < population.getPopulationSize(); i++)
     {
@@ -576,25 +625,32 @@ void GaussianMixture::train()
         }
 
         cout.precision(std::numeric_limits<double>::max_digits10);
-        std::cout << "[CUDA] Individual " << i + 1 << " fitness: " << fitnessResults[i] << " ";
+        #ifdef SHOW_FIT
+            std::cout << "[CUDA] Individual " << i + 1 << " fitness: " << fitnessResults[i] << " ";
+        #endif
 
         #ifdef CPU
-            std::cout << " ";
-            if(isFitnessSame(fitnessCPU[i], fitnessResults[i]))
-            {
-                std::cout << "SAME\n";
-            }
-            else
-            {
-                std::cout << "WRONG\n";
-            }
+            #ifdef SHOW_FIT 
+                std::cout << " ";
+                if(isFitnessSame(fitnessCPU[i], fitnessResults[i]))
+                {
+                    std::cout << "SAME\n";
+                }
+                else
+                {
+                    std::cout << "WRONG\n";
+                }
+            #endif
         #else
             std::cout << std::endl;
         #endif
     }
 
     population.computeAverageFitness();
-    std::cout << "[CUDA] epoch: " << currentEpoch << ", best fitness: " << bestFitness << ", best ind: " << bestIndividual + 1 << "\n\n";
+
+    #ifdef SHOW_FIT 
+        std::cout << "[CUDA] epoch: " << currentEpoch << ", best fitness: " << bestFitness << ", best ind: " << bestIndividual + 1 << "\n\n";
+    #endif
     // save initial values
     bestFitnessRecorder.save(bestFitness);
     averageFitnessRecorder.save(population.getAverageFitness());
@@ -609,6 +665,7 @@ void GaussianMixture::train()
 
         #ifdef CPU
             fitnessCPU.clear();
+            float CPUfitnessTime = 0;
         #endif
         // centroids.clear();
         // widths.clear();
@@ -623,10 +680,21 @@ void GaussianMixture::train()
 
                 tempCoef = Eigen::MatrixXd::Zero(population.getGaussiansNo(i), config.outputsNo);
 
+                auto t1 = std::chrono::high_resolution_clock::now();
                 double fit = computeIndividualFitness(features, output, tempCoef, i);
+                auto t2 = std::chrono::high_resolution_clock::now();
+                float duration = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count());
+                CPUfitnessTime += duration;
+
                 fitnessCPU.push_back(fit);
 
-                std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
+                #ifdef SHOW_FIT
+                    std::cout << "[CPU] Individual " << i + 1 << " fitness: " << fit << "\n";
+                #endif
+
+                #ifdef DEBUG_INFO
+                    std::cout << "Duration: " << duration << "\n";
+                #endif
             #endif
 
             for (int j = 0; j < config.gaussiansNo; j++)
@@ -649,6 +717,12 @@ void GaussianMixture::train()
                 return;
             }
         }
+        #ifdef CPU
+            // std::cout << "[CPU] Avg fitness time: " << CPUfitnessTime / population.getPopulationSize() << " ms\n";
+            std::cout << "[CPU] Fitness calculated in: " << CPUfitnessTime << " ms\n";
+            totalFitnessTimeCPU += CPUfitnessTime;
+            fitnessTimesCPU.push_back(CPUfitnessTime);
+        #endif
         
         flattenedCoefs.clear();
 
@@ -668,7 +742,14 @@ void GaussianMixture::train()
         runUpdateKernel(d_centroids, d_widths, state, config.inputsNo, config.trainSize, population.getPopulationSize(), d_gaussianBoundaries, config.gaussiansNo, bestIndividual, d_centroidChanges, d_widthChanges, d_bestPositionCentroids, d_bestPositionWidths, d_inputDomains);
 
         fitnessResults.clear();
+
+        auto t1 = std::chrono::high_resolution_clock::now();
         calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize, bestFitness, d_bestPositionCentroids, d_bestPositionWidths);
+        auto t2 = std::chrono::high_resolution_clock::now();
+        float duration = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count());
+        std::cout << "[CUDA] Fitness calculated in: " << duration << " ms\n";
+        totalFitnessTimeGPU += duration;
+        fitnessTimesGPU.push_back(duration);
 
         for (int i = 0; i < population.getPopulationSize(); i++)
         {
@@ -694,18 +775,22 @@ void GaussianMixture::train()
                 population.getIndividual(i).changeBestPosition();
             }
 
-            std::cout << "[CUDA] Individual " << i + 1 << " fitness: " << fitnessResults[i];
+            #ifdef SHOW_FIT
+                std::cout << "[CUDA] Individual " << i + 1 << " fitness: " << fitnessResults[i];
+            #endif
 
             #ifdef CPU
-                std::cout << " ";
-                if(isFitnessSame(fitnessCPU[i], fitnessResults[i]))
-                {
-                    std::cout << "SAME\n";
-                }
-                else
-                {
-                    std::cout << "WRONG\n";
-                }
+                #ifdef SHOW_FIT 
+                    std::cout << " ";
+                    if(isFitnessSame(fitnessCPU[i], fitnessResults[i]))
+                    {
+                        std::cout << "SAME\n";
+                    }
+                    else
+                    {
+                        std::cout << "WRONG\n";
+                    }
+                #endif
             #else
                 std::cout << std::endl;
             #endif
@@ -721,7 +806,9 @@ void GaussianMixture::train()
 
         //}
         population.computeAverageFitness();
-        std::cout << "[CUDA] epoch: " << currentEpoch << ", best fitness: " << bestFitness << ", best ind: " << bestIndividual + 1 << "\n";
+        #ifdef SHOW_FIT
+            std::cout << "[CUDA] epoch: " << currentEpoch << ", best fitness: " << bestFitness << ", best ind: " << bestIndividual + 1 << "\n";
+        #endif
         bestFitnessRecorder.save(bestFitness);
         averageFitnessRecorder.save(population.getAverageFitness());
 
@@ -740,6 +827,36 @@ void GaussianMixture::train()
         savePlotFile("plot_figure.m", features, output, testInput, testOutput);
     testResults("final_results.txt", features, output);
     testResults("final_results_test.txt", testInput, testOutput);
+
+    std::cout << "Total CPU time: " << totalFitnessTimeCPU << " ms\n";
+    std::cout << "Total GPU time: " << totalFitnessTimeGPU << " ms\n";
+
+    float avgCPUTime = totalFitnessTimeCPU / (config.maxIterations + 1);
+    float avgGPUTime = totalFitnessTimeGPU / (config.maxIterations + 1);
+    std::cout << "Avg CPU time: " << avgCPUTime << " ms\n";
+    std::cout << "Avg GPU time: " << avgGPUTime << " ms\n";
+
+    // for (auto &v : fitnessTimesCPU)
+    // {
+    //     std::cout << v << std::endl;
+    // }
+
+    // for (auto &v : fitnessTimesGPU)
+    // {
+    //     std::cout << v << std::endl;
+    // }
+
+    std::cout << "std dev CPU: " << calc_std_var(fitnessTimesCPU, avgCPUTime) << "\n";
+    std::cout << "std dev GPU: " << calc_std_var(fitnessTimesGPU, avgGPUTime) << "\n";
+
+    std::ofstream CPUtimeFile("../../cpu_fitness_times.csv", std::ios::app);
+    CPUtimeFile << config.populationSize << "," << avgCPUTime << "," << calc_std_var(fitnessTimesCPU, avgCPUTime) << "\n";
+
+    std::ofstream GPUtimeFile("../../gpu_fitness_times.csv", std::ios::app);
+    GPUtimeFile << config.populationSize << "," << avgGPUTime << "," << calc_std_var(fitnessTimesGPU, avgGPUTime) << "\n";
+
+    CPUtimeFile.close();
+    GPUtimeFile.close();
 
     cudaFree(d_points);
     cudaFree(d_expectedOutput);

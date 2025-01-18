@@ -138,8 +138,8 @@ void Individual::moveIndividual(const Individual &bestParticle)
         for (int j = 0; j < dim; j++)
         {
             // std::cout << "best particle centroid CPU: " << bestParticle.chromosome[i].getCentroid(j) << std::endl;
-            // chromosome[i].setCentroidChange(j, chromosome[i].getCentroidChange(j) + c1 * distribution(generator) * (bestParticle.chromosome[i].getCentroid(j) - chromosome[i].getCentroid(j)) + c2 * distribution(generator) * (bestPosition[i].getCentroid(j) - chromosome[i].getCentroid(j)));
-            chromosome[i].setCentroidChange(j, chromosome[i].getCentroidChange(j) + c1 * (bestParticle.chromosome[i].getCentroid(j) - chromosome[i].getCentroid(j)) + c2 * (bestPosition[i].getCentroid(j) - chromosome[i].getCentroid(j)));
+            chromosome[i].setCentroidChange(j, chromosome[i].getCentroidChange(j) + c1 * distribution(generator) * (bestParticle.chromosome[i].getCentroid(j) - chromosome[i].getCentroid(j)) + c2 * distribution(generator) * (bestPosition[i].getCentroid(j) - chromosome[i].getCentroid(j)));
+            // chromosome[i].setCentroidChange(j, chromosome[i].getCentroidChange(j) + c1 * (bestParticle.chromosome[i].getCentroid(j) - chromosome[i].getCentroid(j)) + c2 * (bestPosition[i].getCentroid(j) - chromosome[i].getCentroid(j)));
             // std::cout << "Centroid change: " << i << " " << chromosome[i].getCentroidChange(j) << std::endl;
             // std::cout << "coef 1 CPU: " << (bestParticle.chromosome[i].getCentroid(j) - chromosome[i].getCentroid(j)) << std::endl;
             // std::cout << "coef 2 CPU: " << bestPosition[i].getCentroid(j) - chromosome[i].getCentroid(j) << std::endl;
@@ -157,8 +157,8 @@ void Individual::moveIndividual(const Individual &bestParticle)
 
             chromosome[i].setCentroid(j, chromosome[i].getCentroid(j) + chromosome[i].getCentroidChange(j));
 
-            // chromosome[i].setWidthChange(j, chromosome[i].getWidthChange(j) + c1 * distribution(generator) * (bestParticle.chromosome[i].getWidth(j) - chromosome[i].getWidth(j)) + c2 * distribution(generator) * (bestPosition[i].getWidth(j) - chromosome[i].getWidth(j)));
-            chromosome[i].setWidthChange(j, chromosome[i].getWidthChange(j) + c1 * (bestParticle.chromosome[i].getWidth(j) - chromosome[i].getWidth(j)) + c2 * (bestPosition[i].getWidth(j) - chromosome[i].getWidth(j)));
+            chromosome[i].setWidthChange(j, chromosome[i].getWidthChange(j) + c1 * distribution(generator) * (bestParticle.chromosome[i].getWidth(j) - chromosome[i].getWidth(j)) + c2 * distribution(generator) * (bestPosition[i].getWidth(j) - chromosome[i].getWidth(j)));
+            // chromosome[i].setWidthChange(j, chromosome[i].getWidthChange(j) + c1 * (bestParticle.chromosome[i].getWidth(j) - chromosome[i].getWidth(j)) + c2 * (bestPosition[i].getWidth(j) - chromosome[i].getWidth(j)));
             // std::cout << "Width change CPU: " << i << " " << chromosome[i].getWidthChange(j) << std::endl;
             // std::cout << "CPU gaussianBoundaries " << gaussianBoundaries[j].first << " " << gaussianBoundaries[j].second << std::endl;
             if (abs(chromosome[i].getWidthChange(j)) > (gaussianBoundaries[j].second - gaussianBoundaries[j].first) * maxChange)
@@ -192,19 +192,19 @@ double Individual::computeFitness(const Eigen::MatrixXd &points, const Eigen::Ma
             sum += fabs(expectedOutput(i, j) - cval);
         }
     }
-    char ch1[20], ch2[20];
-    double dd = sqrt(-1.0);
-    sprintf(ch1, "%g", dd);
-    sprintf(ch2, "%g", sum);
-    if ((strcmp(ch1, ch2) == 0) || (std::isnan(sum)) || (sum != sum))
-        sum = 1e10;
-    if (sum < bestFitnessValue)
-    {
-        // std::cout << "sum " << sum << std::endl;
-        changeBestPosition();
-        bestFitnessValue = sum;
-    }
-    fitnessValue = sum;
+    // char ch1[20], ch2[20];
+    // double dd = sqrt(-1.0);
+    // sprintf(ch1, "%g", dd);
+    // sprintf(ch2, "%g", sum);
+    // if ((strcmp(ch1, ch2) == 0) || (std::isnan(sum)) || (sum != sum))
+    //     sum = 1e10;
+    // if (sum < bestFitnessValue)
+    // {
+    //     // std::cout << "sum " << sum << std::endl;
+    //     changeBestPosition();
+    //     bestFitnessValue = sum;
+    // }
+    // fitnessValue = sum;
     return sum;
 }
 

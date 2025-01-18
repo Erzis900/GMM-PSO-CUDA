@@ -167,10 +167,10 @@ __global__ void updateKernel(double* d_centroids, double* d_widths, curandState 
                     // printf("bpc CUDA: %f\n", bestPositionCentroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
                     // printf("d_centroids: %f\n", d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
-                    // centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * r1 * (d_centroids[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
-                    // + c2 * r2 * (bestPositionCentroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
-                    centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * (d_centroids[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
-                    + c2 * (bestPositionCentroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
+                    centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * r1 * (d_centroids[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
+                    + c2 * r2 * (bestPositionCentroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
+                    // centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * (d_centroids[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
+                    // + c2 * (bestPositionCentroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_centroids[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
                     //  printf("%d Centroid change CUDA: %f\n", gaussNo, centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
                     // if(idx == 0)
@@ -201,11 +201,11 @@ __global__ void updateKernel(double* d_centroids, double* d_widths, curandState 
 
                     // // printf("Before Width changes: %f\n", centroidChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
-                    // widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * r1 * (d_widths[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
-                    // + c2 * r2 * (bestPositionWidths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
+                    widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * r1 * (d_widths[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
+                    + c2 * r2 * (bestPositionWidths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
-                    widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * (d_widths[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
-                    + c2 * (bestPositionWidths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
+                    // widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] += c1 * (d_widths[bestIndex * gaussiansNo * dim + gaussNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]) 
+                    // + c2 * (bestPositionWidths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo] - d_widths[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
                     
                     // printf("%d Width change CUDA: %f\n", gaussNo, widthChanges[particleNo * gaussiansNo * dim + gaussNo * dim + dimNo]);
 
