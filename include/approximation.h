@@ -44,6 +44,7 @@ namespace approximator
 
         /// search for the best GaussianMixture function - PSO method
         virtual void train() = 0;
+        virtual float getMemcpyTime() = 0;
 
     private:
         /// Map type

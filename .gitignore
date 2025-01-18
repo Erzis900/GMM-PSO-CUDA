@@ -42,3 +42,7 @@ build/bin/GaussianMixture
 build/bin/cmake_install.cmake
 /build/bin/lib
 /build/bin/bin
+memcpy_times.csv
+build/bin/bestFitness.txt
+cpu_fitness_times.csv
+cpu_update_times.csv

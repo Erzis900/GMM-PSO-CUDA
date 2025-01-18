@@ -87,6 +87,8 @@ public:
     void train();
     void trainCPU();
 
+    float getMemcpyTime() { return memcpyTime; }
+
     std::vector<Eigen::MatrixXd> allCoefs;
     std::vector<double> centroids;
     std::vector<double> widths;
@@ -136,6 +138,9 @@ private:
 
     std::vector<float> fitnessTimesCPU;
     std::vector<float> fitnessTimesGPU;
+
+    std::vector<float> updateTimesCPU;
+    std::vector<float> updateTimesGPU;
 
     float memcpyTime;
 
