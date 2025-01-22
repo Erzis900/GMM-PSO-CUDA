@@ -226,10 +226,13 @@ private:
     Config config;
 };
 
+float calc_std_var(std::vector<float> times, float avg);
+
 namespace approximator
 {
     /// create a single Map
-    Approximation *createGaussianApproximation(GaussianMixture::Config config);
+    // Approximation *createGaussianApproximation(GaussianMixture::Config config);
+    std::unique_ptr<Approximation> createGaussianApproximation(GaussianMixture::Config config);
 }
 
 #endif //_GaussianMixture_H

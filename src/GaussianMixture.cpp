@@ -14,6 +14,7 @@
 #include <string>
 #include <limits>
 #include <iostream>
+#include <memory>
 #include <chrono>
 
 #include "../include/CUDA_decomposition.h"
@@ -77,7 +78,7 @@ GaussianMixture::GaussianMixture(GaussianMixture::Config _config) : config(_conf
     outputSize = output.rows() * output.cols() * sizeof(double);
     fitnessResultsSize = population.getPopulationSize() * sizeof(double);
 
-    gpuErrchk(cudaMalloc(&d_points, inputSize));
+    // gpuErrchk(cudaMalloc(&d_points, inputSize));
     cudaMalloc(&d_expectedOutput, outputSize);
     cudaMalloc(&d_fitnessResults, fitnessResultsSize);
 
@@ -541,17 +542,6 @@ bool GaussianMixture::isFitnessSame(double fitnessCPU, double fitnessGPU)
     return (fitnessGPU >= (fitnessCPU - deviation)) && (fitnessGPU <= (fitnessCPU + deviation));
 }
 
-float calc_std_var(std::vector<float> times, float avg)
-{
-    float sum = 0;
-    for (auto &x : times)
-    {
-        sum += std::pow((x - avg), 2);
-    }
-
-    return std::sqrt(sum / times.size());
-}
-
 /// search for the best Approximation function - PSO method
 void GaussianMixture::train()
 {
@@ -587,7 +577,7 @@ void GaussianMixture::train()
             #endif
         }
         // std::cout << "[CPU] Avg fitness time: " << CPUfitnessTime / population.getPopulationSize() << " ms\n";
-        std::cout << "[CPU] Fitness calculated in: " << CPUfitnessTime << " ms\n";
+        // std::cout << "[CPU] Fitness calculated in: " << CPUfitnessTime << " ms\n";
         totalFitnessTimeCPU += CPUfitnessTime;
         fitnessTimesCPU.push_back(CPUfitnessTime);
     #endif
@@ -598,12 +588,12 @@ void GaussianMixture::train()
     calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize, bestFitness, d_bestPositionCentroids, d_bestPositionWidths);
     auto t2 = std::chrono::high_resolution_clock::now();
     float duration = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count());
-    std::cout << "[CUDA] Fitness calculated in: " << duration + memcpyTime << " ms\n";
+    // std::cout << "[CUDA] Fitness calculated in: " << duration + memcpyTime << " ms\n";
     totalFitnessTimeGPU += duration;
     fitnessTimesGPU.push_back(duration);
 
     #ifndef SHOW_FIT
-        std::cout << std::endl;
+        // std::cout << std::endl;
     #endif
 
     for (int i = 0; i < population.getPopulationSize(); i++)
@@ -727,7 +717,7 @@ void GaussianMixture::train()
         }
         #ifdef CPU
             // std::cout << "[CPU] Avg fitness time: " << CPUfitnessTime / population.getPopulationSize() << " ms\n";
-            std::cout << "[CPU] Fitness calculated in: " << CPUfitnessTime << " ms\n";
+            // std::cout << "[CPU] Fitness calculated in: " << CPUfitnessTime << " ms\n";
             totalFitnessTimeCPU += CPUfitnessTime;
             totalUpdateTimeCPU += CPUupdateTime;
 
@@ -763,7 +753,7 @@ void GaussianMixture::train()
         calculateFitnessCUDA(d_centroids, d_widths, d_polyCoef, d_points, d_expectedOutput, d_fitnessResults, fitnessResults.data(), population.getPopulationSize(), config.gaussiansNo, config.inputsNo, config.trainSize, bestFitness, d_bestPositionCentroids, d_bestPositionWidths);
         auto t2 = std::chrono::high_resolution_clock::now();
         float duration = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count());
-        std::cout << "[CUDA] Fitness calculated in: " << duration << " ms\n";
+        // std::cout << "[CUDA] Fitness calculated in: " << duration << " ms\n";
         totalFitnessTimeGPU += duration;
         fitnessTimesGPU.push_back(duration);
 
@@ -884,16 +874,14 @@ void GaussianMixture::train()
     std::ofstream GPUtimeFile("../../gpu_fitness_times.csv", std::ios::app);
     GPUtimeFile << config.populationSize << "," << avgGPUTime << "," << calc_std_var(fitnessTimesGPU, avgGPUTime) << "\n";
 
-    std::ofstream memcpyTimeFile("../../memcpy_times.csv", std::ios::app);
-    memcpyTimeFile << config.populationSize << "," << memcpyTime << "\n";
-
     std::ofstream updateTimeFileCPU("../../cpu_update_times.csv", std::ios::app);
     updateTimeFileCPU << config.populationSize << "," << avgCPUupdate << "," << calc_std_var(updateTimesCPU, avgCPUupdate) << "\n";
 
     std::ofstream updateTimeFileGPU("../../gpu_update_times.csv", std::ios::app);
     updateTimeFileGPU << config.populationSize << "," << avgGPUupdate << "," << calc_std_var(fitnessTimesGPU, avgGPUTime)  << "\n";
 
-    memcpyTimeFile.close();
+    cudaDeviceSynchronize();
+
     CPUtimeFile.close();
     GPUtimeFile.close();
     updateTimeFileCPU.close();
@@ -1156,8 +1144,26 @@ double GaussianMixture::computeAPE(const Eigen::MatrixXd &_input, const Eigen::M
     return (sum / double(iter)) * 100.0;
 }
 
-approximator::Approximation *approximator::createGaussianApproximation(GaussianMixture::Config config)
+// approximator::Approximation *approximator::createGaussianApproximation(GaussianMixture::Config config)
+// {
+//     gaussianMixture.reset(new GaussianMixture(config));
+//     return gaussianMixture.get();
+// }
+
+std::unique_ptr<Approximation> approximator::createGaussianApproximation(GaussianMixture::Config config)
 {
-    gaussianMixture.reset(new GaussianMixture(config));
-    return gaussianMixture.get();
+    std::unique_ptr<GaussianMixture> gaussianMixture = std::make_unique<GaussianMixture>(config);
+    // Return the smart pointer
+    return gaussianMixture; // Ownership is transferred to the caller
+}
+
+float calc_std_var(std::vector<float> times, float avg)
+{
+    float sum = 0;
+    for (auto &x : times)
+    {
+        sum += std::pow((x - avg), 2);
+    }
+
+    return std::sqrt(sum / times.size());
 }
